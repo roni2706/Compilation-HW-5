@@ -1,0 +1,1146 @@
+
+%{
+	#include <iostream>
+	#include <sstream>
+	#include <stdlib.h>
+	#include "parser.hpp"
+	#include "output.hpp"
+	#include "parser.tab.hpp"
+	
+	using namespace output;
+	using std::cout;
+	using std::endl;
+	
+	extern int yylineno;
+	int yylex();
+	void yyerror(char const*);
+	
+	SymbolTable* table = NULL;
+	
+%}
+
+%define api.value.type {union YYSTYPE}
+
+%type <str> Program
+%type <str> Funcs
+%type <str> FuncDecl
+%type <str> Structs
+%type <str> StructsDecl
+%type <str> RetType
+%type <str> Formals
+%type <str> FormalsList
+%type <str> FormalDecl
+%type <structMembers> StructMemList
+%type <str> StructMem
+%type <str> Statements
+%type <str> Statement
+%type <str> If
+%type <var> Call
+%type <funcParams> CallParams
+%type <str> ExpList
+%type <str> VarDecl
+%type <str> Type
+%type <str> StructType
+%type <var> Exp
+
+%token <str> VOID
+%token <str> INT
+%token <str> BYTE
+%token <str> B
+%token <str> BOOL
+%token <str> STRUCT
+%token <str> TRUE
+%token <str> FALSE
+%token <str> RETURN
+%token <str> IF
+%nonassoc <str> "then"
+%nonassoc <str> ELSE
+%token <str> WHILE
+%token <str> BREAK
+%token <str> CONTINUE
+%token <str> SC
+%token <str> COMMA
+%token <str> LBRACE
+%token <str> RBRACE
+%token <str> ID
+%token <num> NUM
+%token <str> STRING
+%token <str> EF
+%right <str> ASSIGN
+%left <str> OR
+%left <str> AND
+%right <str> EQ
+%nonassoc <str> REL
+%left  <str> ADD
+%left  <str> MUL
+%right <str> NOT
+%left <str> LPAREN
+%left <str> RPAREN
+%left <str> PERIOD
+
+%%
+
+/* Program -> Structs Funcs */
+/****************************************************************************/
+Program : {
+		/********************************************************************/
+			string baseTypes[] = { "int","bool","byte","string" };
+			table = new SymbolTable(baseTypes, 4, "block");
+			string printParamNames[] = { "_noName" };
+			string printParamTypes[] = { "string" };
+			table->addFunc(
+				"print",
+				"void",
+				printParamNames,
+				printParamTypes,
+				1
+			);
+			string printiParamNames[] = { "_noName" };
+			string printiParamTypes[] = { "int" };
+			table->addFunc(
+				"printi",
+				"void",
+				printiParamNames,
+				printiParamTypes,
+				1
+			);
+		/********************************************************************/
+		} Structs { } Funcs {
+		/********************************************************************/
+			try {
+				if ((table->findFunc("main").getRetType() != "void") ||
+					(table->findFunc("main").size() != 0)){
+						throw FunctionNotFoundException();
+				}
+			}
+			catch (FunctionNotFoundException e) {
+				// Missing main function
+				errorMainMissing();
+				exit(0);
+			}
+			try {
+				table->printScope();
+				table->printFuncs();
+				table->printStructs();
+				table->removeScope();
+			}
+			catch (RemovedBaseScopeException e) {
+				// as it sould
+			}
+		/********************************************************************/
+		} EF {
+		/********************************************************************/
+			return 0;
+		}
+/****************************************************************************/
+;
+
+/* Funcs -> FuncDecl Funcs */
+/****************************************************************************/
+Funcs	: FuncDecl { } Funcs { }
+/****************************************************************************/
+
+
+/* Funcs -> eps */
+/****************************************************************************/
+		| /*epsilon*/ { }
+/****************************************************************************/
+;
+
+/* Funcs -> RetType ID LPAREN Formals RPAREN LBRACE Statements RBRACE */
+/****************************************************************************/
+FuncDecl : RetType ID {
+		/********************************************************************/
+			if (table->isNameUsed(*($<str>ID))){
+				// Redeclaration of function
+				errorDef(yylineno,*($<str>ID));
+				exit(0);
+			}
+		/********************************************************************/
+		} LPAREN Formals RPAREN {
+		/********************************************************************/
+			if ($<funcParams>Formals){
+				table->addFunc(
+					*($<str>ID),
+					*($<str>RetType),
+					*($<funcParams>Formals)
+				);
+			}
+			else {
+				table->addFunc(*($<str>ID),*($<str>RetType));
+			}
+		/********************************************************************/
+		} LBRACE {
+		/********************************************************************/
+			if ($<funcParams>Formals){
+				table->addScope(
+					($<funcParams>Formals)->getParamsNames(),
+					($<funcParams>Formals)->getParamsTypes(),
+					("function"),
+					(*($<str>RetType)));
+				delete ($<funcParams>Formals);
+			}
+			else {
+				table->addScope("function",*($<str>RetType));
+			}
+			delete ($<str>ID);
+			delete ($<str>RetType);
+		/********************************************************************/
+		} Statements { } RBRACE {
+		/********************************************************************/
+			try{
+				table->printScope();
+				table->printStructs();
+				table->removeScope();
+			}
+			catch (NoScopesException e){
+				throw NoScopesException();
+			}
+		}
+/****************************************************************************/
+;
+
+/* Structs -> StructsDecl Structs */
+/****************************************************************************/
+Structs : StructsDecl Structs { }
+/****************************************************************************/
+
+
+/* Structs -> eps */
+/****************************************************************************/
+		| /*epsilon*/ { }
+/****************************************************************************/
+;
+
+/* StructsDecl -> STRUCT ID LBRACE StructMemList RBRACE SC */
+/****************************************************************************/
+StructsDecl : STRUCT ID {
+		/********************************************************************/
+			if (table->isNameUsed(*($<str>ID))){
+					// Redeclaration of struct
+					errorDef(yylineno,*($<str>ID));
+					exit(0);
+				}
+		/********************************************************************/
+		} LBRACE StructMemList RBRACE SC {
+		/********************************************************************/
+			table->addStruct(*($<str>ID),*($<structMembers>StructMemList));
+			delete ($<str>ID);
+			delete ($<structMembers>StructMemList);
+		}
+/****************************************************************************/
+;
+
+/* RetType -> Type */
+/****************************************************************************/
+RetType : Type {
+			$<str>RetType = $<str>Type;
+		}
+/****************************************************************************/
+
+
+/* RetType -> VOID */
+/****************************************************************************/
+		| VOID {
+			$<str>RetType = $<str>VOID;
+		}
+/****************************************************************************/
+;
+
+/* Formals -> FormalsList */
+/****************************************************************************/
+Formals : FormalsList {
+			$<funcParams>Formals = $<funcParams>FormalsList;
+		}
+/****************************************************************************/
+
+
+/* Formals -> eps */
+/****************************************************************************/
+		| /*epsilon*/ {
+			$<funcParams>Formals = NULL;
+		}
+/****************************************************************************/
+;
+
+/* FormalsList -> FormalDecl */
+/****************************************************************************/
+FormalsList[result] : FormalDecl {
+			try{
+				FuncParams* params = new FuncParams();
+				params->addParam(*($<var>FormalDecl));
+				$<funcParams>result = params;
+				delete ($<var>FormalDecl);
+			}
+			catch (NameAlreadyExistsException e){
+				// Redeclaration of function parameter
+				errorDef(yylineno,($<var>FormalDecl)->getName());
+				exit(0);
+			}
+			
+		}
+/****************************************************************************/
+
+
+/* FormalsList -> FormalsList COMMA FormalDecl */
+/****************************************************************************/
+		| FormalsList[right] COMMA FormalDecl {
+			try {
+				($<funcParams>right)->addParam(*($<var>FormalDecl));
+				$<funcParams>result = $<funcParams>right;
+				delete ($<var>FormalDecl);
+			}
+			catch (NameAlreadyExistsException e){
+				// Redeclaration of function parameter
+				errorDef(yylineno,($<var>FormalDecl)->getName());
+				exit(0);
+			}		
+		}
+/****************************************************************************/
+;
+
+/* FormalDecl -> Type ID */
+/****************************************************************************/
+FormalDecl : Type ID {
+			$<var>FormalDecl = new Var(*($<str>ID),*($<str>Type));
+			delete ($<str>ID);
+			delete ($<str>Type);
+		}
+/****************************************************************************/
+
+
+/* FormalDecl -> StructType ID */
+/****************************************************************************/
+		| StructType { 
+		/********************************************************************/
+			if (!table->isTypeExists(*($<str>StructType))){
+				// Declaration of function parameter of undefined struct type
+				errorUndefStruct(yylineno,*($<str>StructType));
+				exit(0);
+			}
+		/********************************************************************/
+		} ID {
+		/********************************************************************/
+			$<var>FormalDecl = new Var(*($<str>ID),*($<str>StructType));
+			delete ($<str>ID);
+			delete ($<str>StructType);
+		}
+/****************************************************************************/
+;
+
+/* StructMemList -> StructMem */
+/****************************************************************************/
+StructMemList[result] : StructMem {
+			try {
+				StructMembers* members = new StructMembers();
+				members->addMember(*($<var>StructMem));
+				$<structMembers>result = members;
+				delete ($<var>StructMem);
+			}
+			catch (NameAlreadyExistsException e){
+				// Redeclaration of struct members
+				errorDef(yylineno,($<var>StructMem)->getName());
+				exit(0);
+			}
+		}
+/****************************************************************************/
+
+
+/* StructMemList -> StructMemList StructMem */
+/****************************************************************************/
+		| StructMemList[right] StructMem  {
+			try {
+				($<structMembers>right)->addMember(*($<var>StructMem));
+				$<structMembers>result = $<structMembers>right;
+				delete ($<var>StructMem);
+			}
+			catch (NameAlreadyExistsException e){
+				// Redeclaration of struct members
+				errorDef(yylineno,($<var>StructMem)->getName());
+				exit(0);
+			}
+		}
+/****************************************************************************/
+;
+
+/* StructMem -> Type ID SC */
+/****************************************************************************/
+StructMem : Type ID SC {
+			$<var>StructMem = new Var(*($<str>ID),*($<str>Type));
+			delete ($<str>ID);
+			delete ($<str>Type);
+		}
+/****************************************************************************/
+;
+
+/* Statements -> Statement */
+/****************************************************************************/
+Statements : Statement { }
+/****************************************************************************/
+
+
+/* Statements -> Statements Statement */
+/****************************************************************************/
+		| Statements Statement { }
+/****************************************************************************/
+;
+
+/* Statements -> LBRACE Statements RBRACE */
+/****************************************************************************/
+Statement : LBRACE { 
+		/********************************************************************/
+			const string& initiator = table->getScopeInitiator();
+			const string& retType = table->getScopeRetType();
+			if (initiator == "while"){
+				table->addScope("while",retType);
+			}
+			else {
+				table->addScope(initiator,retType);
+			}
+		/********************************************************************/
+		} Statements { } RBRACE {
+		/********************************************************************/
+			table->printScope();
+			table->printStructs();
+			table->removeScope();
+		}
+/****************************************************************************/
+
+
+/* Statements -> VarDecl SC */
+/****************************************************************************/
+		| VarDecl SC { }
+/****************************************************************************/
+
+
+/* Statements -> StructsDecl */
+/****************************************************************************/
+		| StructsDecl { }
+/****************************************************************************/
+
+
+/* Statements -> VarDecl ASSIGN Exp SC */
+/****************************************************************************/
+		| VarDecl[left] ASSIGN Exp[right] SC {
+			const string& leftType = ($<var>left)->getType();
+			const string& leftName = ($<var>left)->getName();
+			const string& rightType = ($<var>right)->getType();
+			const string& rightName = ($<var>right)->getName();
+			if ((leftType != rightType)&&
+				(leftType != "int" || rightType != "byte")){
+				// Mismatch of assing operation
+				errorMismatch(yylineno);
+				exit(0);
+			}
+			if (rightName == "__temp"){
+				delete ($<var>right);
+			}
+		}
+/****************************************************************************/
+
+
+/* Statement -> ID ASSIGN Exp SC */
+/****************************************************************************/
+		| ID[left] ASSIGN { 
+		/********************************************************************/
+		try {
+				table->findVar(*($<str>left));
+			}
+			catch (VariableNotFoundException e){
+				// Using undefined variable
+				errorUndef(yylineno,*($<str>left));
+				exit(0);
+			}
+		/********************************************************************/
+		} Exp[right] SC { 
+		/********************************************************************/
+			const string& rightType = ($<var>right)->getType();
+			const string& rightName = ($<var>right)->getName();
+			const string& leftType = (
+				table->findVar(*($<str>left))).getType();
+			const string& leftName = (
+				table->findVar(*($<str>left))).getName();
+			if ((leftType != rightType)&&
+				(leftType != "int" || rightType != "byte")){
+				// Mismatch of assing operation
+				errorMismatch(yylineno);
+				exit(0);
+			}
+			if (rightName == "__temp"){
+				delete ($<var>right);
+			}
+		}
+/****************************************************************************/
+
+
+/* Statement -> ID PERIOD ID ASSIGN Exp SC */
+/****************************************************************************/
+		| ID[left] PERIOD { 
+		/********************************************************************/
+			try{
+				const string& structName =
+					table->findVar(*($<str>left)).getType();
+				table->findStruct(structName);
+			}
+			catch (VariableNotFoundException e){
+				// Using undefined struct
+				errorUndef(yylineno,*($<str>left));
+				exit(0);
+			}
+			catch (StructNotFoundException e){
+				// Using undefined struct
+				errorUndef(yylineno,*($<str>left));
+				exit(0);
+			}
+		/********************************************************************/
+		} ID[mid] { 
+		/********************************************************************/
+			try{
+				const string& structName =
+					table->findVar(*($<str>left)).getType();
+				table->findStruct(structName).find(*($<str>mid));
+			}
+			catch (VariableNotFoundException e){
+				// Using undefined struct member
+				errorUndefStructMember(yylineno,*($<str>left));
+				exit(0);
+			}
+		/********************************************************************/
+		} ASSIGN Exp[right] SC {
+		/********************************************************************/
+			const string& rightType = ($<var>right)->getType();
+			const string& rightName = ($<var>right)->getName();
+			const string& structName =
+					table->findVar(*($<str>left)).getType();
+			const string& leftType = 
+				table->findStruct(structName).find(*($<str>mid));;
+			if ((leftType != rightType)&&
+				(leftType != "int" || rightType != "byte")){
+				// Mismatch of assing operation
+				errorMismatch(yylineno);
+				exit(0);
+			}
+			if (rightName == "__temp"){
+				delete ($<var>right);
+			}
+		}
+/****************************************************************************/
+
+
+/* Statement -> Call SC */
+/****************************************************************************/
+		| Call SC {
+			delete ($<var>Call);	
+		}
+/****************************************************************************/
+
+
+/* Statement -> RETURN SC */
+/****************************************************************************/
+		| RETURN SC {
+			const string& leftType = table->getScopeRetType();
+			if (leftType != "void"){
+				// Mismatch of return type (non-void)
+				errorMismatch(yylineno);
+				exit(0);
+			}
+		}
+/****************************************************************************/
+
+
+/* Statement -> RETURN Exp SC */
+/****************************************************************************/
+		| RETURN Exp[right] SC {
+			const string& leftType = table->getScopeRetType();
+			const string& rightType = ($<var>right)->getType();
+			const string& rightName = ($<var>right)->getName();
+			if ((leftType != rightType)&&
+				(leftType != "int" || rightType != "byte")){
+				// Mismatch of return type
+				errorMismatch(yylineno);
+				exit(0);
+			}
+			if (rightName == "__temp"){
+				delete ($<var>right);
+			}
+		}
+/****************************************************************************/
+
+
+/* Statement -> If */
+/****************************************************************************/
+		| If %prec "then"{ }
+/****************************************************************************/
+
+
+/* Statement -> If ELSE Statement */
+/****************************************************************************/
+		| If ELSE {
+			if (table->getScopeInitiator() != "while") {
+				table->addScope("else", table->getScopeRetType());
+			}
+			else {
+				table->addScope("while", table->getScopeRetType());
+			}
+		/********************************************************************/
+		} Statement {
+		/********************************************************************/
+			table->printScope();
+			table->printStructs();
+			table->removeScope();
+		}
+/****************************************************************************/
+
+
+/* Statement -> WHILE LPAREN Exp RPAREN Statement */
+/****************************************************************************/
+		| WHILE LPAREN Exp { 
+		/********************************************************************/
+			if (($<var>Exp)->getType() != "bool"){
+				// Mismatch of while condition type
+				errorMismatch(yylineno);
+				exit(0);
+			}
+		/********************************************************************/
+		} RPAREN {
+		/********************************************************************/
+			table->addScope("while", table->getScopeRetType());
+		/********************************************************************/
+		} Statement {
+		/********************************************************************/
+			table->printScope();
+			table->printStructs();
+			table->removeScope();
+		}
+/****************************************************************************/
+
+
+/* Statement -> BREAK SC */
+/****************************************************************************/
+		| BREAK SC {
+			if (table->getScopeInitiator() != "while"){
+				// Using break statment outside of while loop
+				errorUnexpectedBreak(yylineno);
+				exit(0);
+			}
+		}
+/****************************************************************************/
+
+
+/* Statement -> CONTINUE SC */
+/****************************************************************************/
+		| CONTINUE SC {
+			if (table->getScopeInitiator() != "while"){
+				// Using continue statment outside of while loop
+				errorUnexpectedContinue(yylineno);
+				exit(0);
+			}
+		}
+/****************************************************************************/
+;
+
+/* If -> IF LPAREN Exp RPAREN Statement */
+/****************************************************************************/
+If 		: IF LPAREN Exp { 
+		/********************************************************************/
+			if (($<var>Exp)->getType() != "bool"){
+				// Mismatch of if condition type
+				errorMismatch(yylineno);
+				exit(0);
+			}
+		/********************************************************************/
+		} RPAREN {
+		/********************************************************************/
+			if (table->getScopeInitiator() != "while") {
+				table->addScope("if", table->getScopeRetType());
+			}
+			else {
+				table->addScope("while", table->getScopeRetType());
+			}
+		/********************************************************************/
+		} Statement {
+		/********************************************************************/
+			table->printScope();
+			table->printStructs();
+			table->removeScope();
+		}
+/****************************************************************************/
+;
+
+/* Call -> ID LPAREN CallParams RPAREN */
+/****************************************************************************/
+Call[result] : ID LPAREN { 
+		/********************************************************************/
+			try {
+				table->findFunc(*($<str>ID));
+			}
+			catch (FunctionNotFoundException e) {
+					// Calling undefined function
+					errorUndefFunc(yylineno,*($<str>ID));
+					exit(0);
+				}
+		/********************************************************************/
+		} CallParams RPAREN {
+		/********************************************************************/
+			FuncNode const *func = &(table->findFunc(*($<str>ID)));
+			if ($<funcParams>CallParams){
+				const vector<string>& givenParamTypes =
+					($<funcParams>CallParams)->getParamsTypes();
+				const vector<string>& paramTypes = func->getParamsTypes();	
+				if (($<funcParams>CallParams)->size() != func->size()){
+					// Calling function with wrong signature
+					errorPrototypeMismatch(
+						yylineno,*($<str>ID),
+						printTypeNames(paramTypes));
+					exit(0);
+				}
+				for (int i=0; i<func->size(); i++){
+					if ((paramTypes[i] != givenParamTypes[i]) &&
+						(paramTypes[i] != "int" || givenParamTypes[i] != "byte")){
+						// Calling function with wrong signature
+						errorPrototypeMismatch(
+							yylineno,
+							*($<str>ID),
+							printTypeNames(paramTypes));
+						exit(0);
+					}
+				}
+				delete ($<funcParams>CallParams);
+			}
+			else {
+				if (func->size() != 0){
+					// Calling function with wrong signature
+					errorPrototypeMismatch(
+						yylineno,
+						*($<str>ID),
+						printTypeNames(func->getParamsTypes()));
+					exit(0);
+				}
+			}
+			$<var>result = new Var("__temp",func->getRetType());
+		}
+/****************************************************************************/
+;
+
+/* CallParams -> ExpList */
+/****************************************************************************/
+CallParams : ExpList {
+			$<funcParams>CallParams = $<funcParams>ExpList;
+		}
+/****************************************************************************/
+
+
+/* CallParams -> eps */
+/****************************************************************************/
+		| /*ellipse*/ {
+			$<funcParams>CallParams = NULL;
+		}
+/****************************************************************************/
+;
+
+/* ExpList -> Exp */
+/****************************************************************************/
+ExpList[result] : Exp {
+			FuncParams* parameters = new FuncParams();
+			parameters->addParam(*($<var>Exp));
+			$<funcParams>result = parameters;
+			if (($<var>Exp)->getName() == "__temp"){
+				delete ($<var>Exp);
+			}
+		}
+/****************************************************************************/
+
+
+/* ExpList -> ExpList COMMA Exp */
+/****************************************************************************/
+		| ExpList[right] COMMA Exp {
+			($<funcParams>right)->addParam(*($<var>Exp));
+			$<funcParams>result = $<funcParams>right;
+			if (($<var>Exp)->getName() == "__temp"){
+				delete ($<var>Exp);
+			}
+		}
+/****************************************************************************/
+;
+
+/* VarDecl -> Type ID */
+/****************************************************************************/
+VarDecl[result] : Type ID {
+			try {
+				table->addVar(*($<str>ID),*($<str>Type));
+				$<var>result = &(table->findVar(*($<str>ID)));
+			}
+			catch (NameAlreadyExistsException e){
+				// Redeclaration of variable
+				errorDef(yylineno,*($<str>ID));
+				exit(0);
+			}
+		}
+/****************************************************************************/
+
+
+/* VarDecl -> StructType ID */
+/****************************************************************************/
+		| StructType ID {
+			try {
+				table->addVar(*($<str>ID),*($<str>StructType));
+				$<var>result = &(table->findVar(*($<str>ID)));
+			}
+			catch (InvalidTypeNameException e){
+				// Redeclaration of variable
+				errorUndefStruct(yylineno,*($<str>StructType));
+				exit(0);
+			}
+			catch (NameAlreadyExistsException e){
+				// Redeclaration of variable
+				errorDef(yylineno,*($<str>ID));
+				exit(0);
+			}
+		}
+/****************************************************************************/
+;
+
+/* Type -> INT */
+/****************************************************************************/
+Type : INT {
+			$<str>$ = $<str>INT;
+		}
+/****************************************************************************/
+
+
+/* Type -> BYTE */
+/****************************************************************************/
+		| BYTE {
+			$<str>$ = $<str>BYTE;
+		}
+/****************************************************************************/
+
+
+/* Type -> BOOL */
+/****************************************************************************/
+		| BOOL {
+			$<str>$ = $<str>BOOL;
+		}
+/****************************************************************************/
+;
+
+/* StructType -> STRUCT ID */
+/****************************************************************************/
+StructType : STRUCT ID {
+			$<str>StructType = $<str>ID;
+		}
+/****************************************************************************/
+;
+
+/* Exp -> LPAREN Exp RPAREN */
+/****************************************************************************/
+Exp[result]	: LPAREN Exp[left] RPAREN {
+		/********************************************************************/
+			$<var>result = $<var>left;
+		/********************************************************************/
+		}
+/****************************************************************************/
+
+
+/* Exp -> Exp MUL Exp */
+/****************************************************************************/
+		| Exp[left] MUL Exp[right] { 
+			if ((($<var>left)->getType() != "int") && 
+				(($<var>left)->getType() != "byte")){
+				// Mismatch of type for operation
+				errorMismatch(yylineno);
+				exit(0);	
+			}
+			if ((($<var>right)->getType() != "int") && 
+				(($<var>right)->getType() != "byte")){
+				// Mismatch of type for operation
+				errorMismatch(yylineno);
+				exit(0);	
+			}
+			if ((($<var>left)->getType() == "int") || 
+				(($<var>right)->getType() == "int")){
+				$<var>result = new Var("__temp","int");
+			}
+			else {
+				$<var>result = new Var("__temp","byte");
+			}
+			if (($<var>left)->getName() == "__temp"){
+				delete ($<var>left);
+			}
+			if (($<var>right)->getName() == "__temp"){
+				delete ($<var>right);
+			}
+		}
+/****************************************************************************/
+
+
+/* Exp -> Exp ADD Exp */
+/****************************************************************************/
+		| Exp[left] ADD Exp[right] {
+			if ((($<var>left)->getType() != "int") && 
+				(($<var>left)->getType() != "byte")){
+				// Mismatch of type for operation
+				errorMismatch(yylineno);
+				exit(0);	
+			}
+			if ((($<var>right)->getType() != "int") && 
+				(($<var>right)->getType() != "byte")){
+				// Mismatch of type for operation
+				errorMismatch(yylineno);
+				exit(0);	
+			}
+			if ((($<var>left)->getType() == "int") || 
+				(($<var>right)->getType() == "int")){
+				$<var>result = new Var("__temp","int");
+			}
+			else {
+				$<var>result = new Var("__temp","byte");
+			}
+			if (($<var>left)->getName() == "__temp"){
+				delete ($<var>left);
+			}
+			if (($<var>right)->getName() == "__temp"){
+				delete ($<var>right);
+			}
+		}
+/****************************************************************************/
+
+
+/* Exp -> ID */
+/****************************************************************************/
+		| ID {
+			try {
+				$<var>result = &(table->findVar(*($<str>ID)));
+			}
+			catch (VariableNotFoundException e){
+				// Using undefined variable
+				errorUndef(yylineno,*($<str>ID));
+				exit(0);
+			}
+		}
+/****************************************************************************/
+
+
+/* Exp -> ID PERIOD ID */
+/****************************************************************************/
+		| ID[left] { 
+		/********************************************************************/
+			try{
+				const string& structName =
+					table->findVar(*($<str>left)).getType();
+				table->findStruct(structName);
+			}
+			catch (VariableNotFoundException e){
+				// Using undefined struct
+				errorUndef(yylineno,*($<str>left));
+				exit(0);
+			}
+			catch (StructNotFoundException e){
+				// Using undefined struct
+				errorUndef(yylineno,*($<str>left));
+				exit(0);
+			}
+		/********************************************************************/
+		} PERIOD ID[right] {
+		/********************************************************************/
+			const StructNode* strct;
+			try{
+				const string& structName =
+					table->findVar(*($<str>left)).getType();
+				strct = &(table->findStruct(structName));
+				$<var>result = new Var("__temp",strct->find(*($<str>right)));
+			}
+			catch (VariableNotFoundException e){
+				// Using undefined struct member
+				errorUndefStructMember(yylineno,*($<str>left));
+				exit(0);
+			}
+		}
+/****************************************************************************/
+
+
+/* Exp -> Call */
+/****************************************************************************/
+		| Call {
+			$<var>result = $<var>Call;
+		}
+/****************************************************************************/
+
+
+/* Exp -> NUM */
+/****************************************************************************/
+		| NUM {
+			$<var>result = new Var("__temp","int");
+		}
+/****************************************************************************/
+
+
+/* Exp -> NUM B */
+/****************************************************************************/
+		| NUM B {
+			if ($<num>NUM > 255){
+				std::stringstream ss;
+				ss << $<num>NUM;
+				// Invalid value for byte
+				errorByteTooLarge(yylineno,ss.str());
+				exit(0);
+			}
+			$<var>result = new Var("__temp","byte");
+		}
+/****************************************************************************/
+
+
+/* Exp -> STRING */
+/****************************************************************************/
+		| STRING {
+			$<var>result = new Var("__temp","string");
+		}
+/****************************************************************************/
+
+
+/* Exp -> TRUE */
+/****************************************************************************/
+		| TRUE {
+			$<var>result = new Var("__temp","bool");
+		}
+/****************************************************************************/
+
+
+/* Exp -> FALSE */
+/****************************************************************************/
+		| FALSE {
+			$<var>result = new Var("__temp","bool");
+		}
+/****************************************************************************/
+
+
+/* Exp -> NOT Exp */
+/****************************************************************************/
+		| NOT Exp[left] {
+			const string& leftType = ($<var>left)->getType();
+			const string& leftName = ($<var>left)->getName();
+			if (leftType != "bool"){
+				// Mismatch of type for operation
+				errorMismatch(yylineno);
+				exit(0);
+			}
+			$<var>result = new Var("__temp","bool");
+			if (leftName == "__temp"){
+				delete ($<var>left);
+			}
+		}
+/****************************************************************************/
+
+
+/* Exp -> Exp AND Exp */
+/****************************************************************************/
+		| Exp[left] AND Exp[right] { 
+			if (($<var>left)->getType() != "bool"){
+				// Mismatch of type for operation
+				errorMismatch(yylineno);
+				exit(0);
+			}
+			if (($<var>right)->getType() != "bool"){
+				// Mismatch of type for operation
+				errorMismatch(yylineno);
+				exit(0);
+			}
+			if (($<var>left)->getName() == "__temp"){
+				delete ($<var>left);
+			}
+			if (($<var>right)->getName() == "__temp"){
+				delete ($<var>right);
+			}
+			$<var>result = new Var("__temp","bool");	
+		}
+/****************************************************************************/
+
+
+/* Exp -> Exp OR Exp */
+/****************************************************************************/
+		| Exp[left] OR Exp[right] {
+			if (($<var>left)->getType() != "bool"){
+				// Mismatch of type for operation
+				errorMismatch(yylineno);
+				exit(0);
+			}
+			if (($<var>right)->getType() != "bool"){
+				// Mismatch of type for operation
+				errorMismatch(yylineno);
+				exit(0);
+			}
+			if (($<var>left)->getName() == "__temp"){
+				delete ($<var>left);
+			}
+			if (($<var>right)->getName() == "__temp"){
+				delete ($<var>right);
+			}
+			$<var>result = new Var("__temp","bool");	
+		}
+/****************************************************************************/
+
+
+/* Exp -> Exp REL Exp */
+/****************************************************************************/
+		| Exp[left] REL Exp[right] {
+			if ((($<var>left)->getType() != "int")&&
+				(($<var>left)->getType() != "byte")){
+				// Mismatch of type for operation
+				errorMismatch(yylineno);
+				exit(0);
+			}
+			if ((($<var>right)->getType() != "int")&&
+				(($<var>right)->getType() != "byte")){
+				// Mismatch of type for operation
+				errorMismatch(yylineno);
+				exit(0);
+			}
+			if (($<var>left)->getName() == "__temp"){
+				delete ($<var>left);
+			}
+			if (($<var>right)->getName() == "__temp"){
+				delete ($<var>right);
+			}
+			$<var>result = new Var("__temp","bool");
+		}
+/****************************************************************************/
+
+
+/* Exp -> Exp EQ Exp */
+/****************************************************************************/
+		| Exp[left] EQ Exp[right] {
+			if ((($<var>left)->getType() != "int")&&
+				(($<var>left)->getType() != "byte")){
+				// Mismatch of type for operation
+				errorMismatch(yylineno);
+				exit(0);
+			}
+			if ((($<var>right)->getType() != "int")&&
+				(($<var>right)->getType() != "byte")){
+				// Mismatch of type for operation
+				errorMismatch(yylineno);
+				exit(0);
+			}
+			if (($<var>left)->getName() == "__temp"){
+				delete ($<var>left);
+			}
+			if (($<var>right)->getName() == "__temp"){
+				delete ($<var>right);
+			}
+			$<var>result = new Var("__temp","bool");
+		}
+/****************************************************************************/
+;
+
+%%
+
+int main() {
+	yyparse();
+	return 0;
+}
+
+void yyerror(char const* s){
+	errorSyn(yylineno);
+	exit(0);
+}
+
