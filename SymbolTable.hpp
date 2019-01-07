@@ -12,6 +12,7 @@
 using std::string;
 using std::vector;
 using std::set;
+#define N 20
 
 /****************************************************************************/
 /*                                EXCEPTIONS                                */
@@ -28,10 +29,25 @@ class NoScopesException : public std::exception {};
 class TypeNotInScopeException : public std::exception {};
 class InvalidInitiatorNameException : public std::exception {};
 
+
+
+/****************************************************************************/
+/*                                CLASS REG POOL                                 */
+/****************************************************************************/
+class RegPool {
+public:
+	RegPool();
+	~RegPool();
+	int allocateReg();
+	void freeReg(int reg);
+	
+private:
+	bool regPool[N];
+}
+
 /****************************************************************************/
 /*                                CLASS VAR                                 */
 /****************************************************************************/
-
 class Var {
 public:
 	Var(const string& name, const string& type, int place = 0, int size = 1);
@@ -42,7 +58,7 @@ public:
 	int size() const;
 	void freeReg();
 	void allocReg(int reg);
-	int getReg();
+	int getReg() const;
 
 private:
 	string _name;

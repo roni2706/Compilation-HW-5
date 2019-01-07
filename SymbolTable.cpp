@@ -15,7 +15,31 @@ using std::endl;
   if (debugging_enabled) { out << x << endl; } \
 } while (0)
 
-bool debugging_enabled = true;
+/****************************************************************************/
+/*                                CLASS REG POOL                                 */
+/****************************************************************************/
+
+RegPool::RegPool() : {
+	for( int i = 0 ; i < N ; i++ ) {
+		regPool[i] = false;
+	}
+}
+
+RegPool::~RegPool() {}
+
+int RegPool::allocateReg() {
+	for( int i = 0 ; i < N ; i++ ) {
+		if ( !regPool[i] ) {
+			regPool[i] = true;
+			return i+8;
+		}
+	}		
+}
+
+void RegPool::freeReg(int reg) {
+	regPool[reg] = false;
+}
+	
 /****************************************************************************/
 /*                                CLASS VAR                                 */
 /****************************************************************************/
