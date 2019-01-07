@@ -16,6 +16,7 @@
 	void yyerror(char const*);
 	
 	SymbolTable* table = NULL;
+	RegPool* regPool;
 	
 %}
 
@@ -86,6 +87,7 @@ Program : {
 		/********************************************************************/
 			string baseTypes[] = { "int","bool","byte","string" };
 			table = new SymbolTable(baseTypes, 4, "block");
+			regPool = new RegPool();
 			string printParamNames[] = { "_noName" };
 			string printParamTypes[] = { "string" };
 			table->addFunc(
@@ -835,9 +837,7 @@ StructType : STRUCT ID {
 /* Exp -> LPAREN Exp RPAREN */
 /****************************************************************************/
 Exp[result]	: LPAREN Exp[left] RPAREN {
-		/********************************************************************/
 			$<var>result = $<var>left;
-		/********************************************************************/
 		}
 /****************************************************************************/
 
@@ -864,6 +864,14 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			else {
 				$<var>result = new Var("__temp","byte");
 			}
+			
+			$<var>result->allocReg(regPool->allocateReg());
+			regPool->freeReg($<var>left->getReg());
+			regPool->freeReg($<var>right->getReg());
+			
+			$<var>left->freeReg();
+			$<var>right->freeReg();
+						
 			if (($<var>left)->getName() == "__temp"){
 				delete ($<var>left);
 			}
@@ -896,6 +904,13 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			else {
 				$<var>result = new Var("__temp","byte");
 			}
+			$<var>result->allocReg(regPool->allocateReg());
+			regPool->freeReg($<var>left->getReg());
+			regPool->freeReg($<var>right->getReg());
+			
+			$<var>left->freeReg();
+			$<var>right->freeReg();
+			
 			if (($<var>left)->getName() == "__temp"){
 				delete ($<var>left);
 			}
@@ -911,6 +926,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 		| ID {
 			try {
 				$<var>result = &(table->findVar(*($<str>ID)));
+				$<var>result->allocReg(regPool->allocateReg());
 			}
 			catch (VariableNotFoundException e){
 				// Using undefined variable
@@ -949,6 +965,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 					table->findVar(*($<str>left)).getType();
 				strct = &(table->findStruct(structName));
 				$<var>result = new Var("__temp",strct->find(*($<str>right)));
+				$<var>result->allocReg(regPool->allocateReg());
 			}
 			catch (VariableNotFoundException e){
 				// Using undefined struct member
@@ -963,6 +980,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /****************************************************************************/
 		| Call {
 			$<var>result = $<var>Call;
+			$<var>result->allocReg(regPool->allocateReg());
 		}
 /****************************************************************************/
 
@@ -971,6 +989,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /****************************************************************************/
 		| NUM {
 			$<var>result = new Var("__temp","int");
+			$<var>result->allocReg(regPool->allocateReg());
 		}
 /****************************************************************************/
 
@@ -986,6 +1005,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			$<var>result = new Var("__temp","byte");
+			$<var>result->allocReg(regPool->allocateReg());
 		}
 /****************************************************************************/
 
@@ -1002,6 +1022,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /****************************************************************************/
 		| TRUE {
 			$<var>result = new Var("__temp","bool");
+			$<var>result->allocReg(regPool->allocateReg());
 		}
 /****************************************************************************/
 
@@ -1010,6 +1031,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /****************************************************************************/
 		| FALSE {
 			$<var>result = new Var("__temp","bool");
+			$<var>result->allocReg(regPool->allocateReg());
 		}
 /****************************************************************************/
 
@@ -1025,6 +1047,9 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			$<var>result = new Var("__temp","bool");
+			$<var>result->allocReg(regPool->allocateReg());
+			regPool->freeReg($<var>left->getReg());
+			$<var>left->freeReg();
 			if (leftName == "__temp"){
 				delete ($<var>left);
 			}
@@ -1045,13 +1070,20 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				errorMismatch(yylineno);
 				exit(0);
 			}
+			$<var>result = new Var("__temp","bool");	
+			$<var>result->allocReg(regPool->allocateReg());
+			regPool->freeReg($<var>left->getReg());
+			regPool->freeReg($<var>right->getReg());
+			
+			$<var>left->freeReg();
+			$<var>right->freeReg();
+			
 			if (($<var>left)->getName() == "__temp"){
 				delete ($<var>left);
 			}
 			if (($<var>right)->getName() == "__temp"){
 				delete ($<var>right);
 			}
-			$<var>result = new Var("__temp","bool");	
 		}
 /****************************************************************************/
 
@@ -1069,13 +1101,21 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				errorMismatch(yylineno);
 				exit(0);
 			}
+			$<var>result = new Var("__temp","bool");	
+			
+			$<var>result->allocReg(regPool->allocateReg());
+			regPool->freeReg($<var>left->getReg());
+			regPool->freeReg($<var>right->getReg());
+			
+			$<var>left->freeReg();
+			$<var>right->freeReg();
+
 			if (($<var>left)->getName() == "__temp"){
 				delete ($<var>left);
 			}
 			if (($<var>right)->getName() == "__temp"){
 				delete ($<var>right);
 			}
-			$<var>result = new Var("__temp","bool");	
 		}
 /****************************************************************************/
 
@@ -1095,13 +1135,20 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				errorMismatch(yylineno);
 				exit(0);
 			}
+			$<var>result = new Var("__temp","bool");
+			$<var>result->allocReg(regPool->allocateReg());
+			regPool->freeReg($<var>left->getReg());
+			regPool->freeReg($<var>right->getReg());
+			
+			$<var>left->freeReg();
+			$<var>right->freeReg();
+			
 			if (($<var>left)->getName() == "__temp"){
 				delete ($<var>left);
 			}
 			if (($<var>right)->getName() == "__temp"){
 				delete ($<var>right);
 			}
-			$<var>result = new Var("__temp","bool");
 		}
 /****************************************************************************/
 
@@ -1121,13 +1168,22 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				errorMismatch(yylineno);
 				exit(0);
 			}
-			if (($<var>left)->getName() == "__temp"){
+			$<var>result = new Var("__temp","bool");
+			
+			$<var>result->allocReg(regPool->allocateReg());
+			regPool->freeReg($<var>left->getReg());
+			regPool->freeReg($<var>right->getReg());
+			
+			$<var>left->freeReg();
+			$<var>right->freeReg();
+			
+
+			if (($<var>left)->getName() == "__temp") {
 				delete ($<var>left);
 			}
-			if (($<var>right)->getName() == "__temp"){
+			if (($<var>right)->getName() == "__temp") {
 				delete ($<var>right);
 			}
-			$<var>result = new Var("__temp","bool");
 		}
 /****************************************************************************/
 ;

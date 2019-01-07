@@ -34,6 +34,7 @@ int RegPool::allocateReg() {
 			return i+8;
 		}
 	}		
+	return 0;
 }
 
 void RegPool::freeReg(int reg) {
