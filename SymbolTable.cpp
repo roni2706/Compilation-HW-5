@@ -21,7 +21,7 @@ bool debugging_enabled = true;
 /****************************************************************************/
 
 Var::Var(const string& name, const string& type, int place, int size) :
-	_name(name), _type(type), _place(place), _size(size)  {}
+	_name(name), _type(type), _place(place), _size(size), _reg(0)  {}
 
 Var::~Var() {}
 
@@ -40,6 +40,19 @@ int Var::place() const {
 int Var::size() const {
 	return _size;
 }
+
+void Var::freeReg() {
+	_reg = 0;
+}
+
+void Var::allocReg(int reg) {
+	_reg = reg;
+}
+
+int Var::getReg() {
+	return _reg;
+}
+
 
 /****************************************************************************/
 /*                           CLASS STRUCT_MEMBERS                           */

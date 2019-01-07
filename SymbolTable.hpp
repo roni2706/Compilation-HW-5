@@ -40,12 +40,16 @@ public:
 	const string& getType() const;
 	int place() const;
 	int size() const;
+	void freeReg();
+	void allocReg(int reg);
+	int getReg();
 
 private:
 	string _name;
 	string _type;
 	int _place;
 	int _size;
+	int _reg;
 	
 };
 
