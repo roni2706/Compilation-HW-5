@@ -12,7 +12,7 @@
 using std::string;
 using std::vector;
 using std::set;
-#define N 20
+#define N 18
 
 /****************************************************************************/
 /*                                EXCEPTIONS                                */
@@ -64,6 +64,10 @@ public:
 	int getReg() const;
 	void freeReg();
 	void allocReg(int reg);
+	vector<int> truelist;
+	vector<int> falselist;
+	vector<int> nextlist;
+	string quad;
 private:
 	string _name;
 	string _type;
