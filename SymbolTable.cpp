@@ -16,10 +16,10 @@ using std::endl;
 } while (0)
 
 /****************************************************************************/
-/*                                CLASS REG POOL                                 */
+/*                              CLASS REG POOL                              */
 /****************************************************************************/
 
-RegPool::RegPool() : {
+RegPool::RegPool() {
 	for( int i = 0 ; i < N ; i++ ) {
 		regPool[i] = false;
 	}
@@ -48,6 +48,13 @@ void RegPool::freeReg(int reg) {
 Var::Var(const string& name, const string& type, int place, int size) :
 	_name(name), _type(type), _place(place), _size(size), _reg(0)  {}
 
+Var::Var(const Var& var) :
+	_name(var.getName()),
+	_type(var.getType()),
+	_place(var.getPlace()),
+	_size(var.getSize()),
+	_reg(var.getReg()) {}
+
 Var::~Var() {}
 
 const string& Var::getName() const {
@@ -58,12 +65,16 @@ const string& Var::getType() const {
 	return _type;
 }
 
-int Var::place() const {
+int Var::getPlace() const {
 	return _place;
 }
 
-int Var::size() const {
+int Var::getSize() const {
 	return _size;
+}
+
+int Var::getReg() const {
+	return _reg;
 }
 
 void Var::freeReg() {
@@ -74,59 +85,29 @@ void Var::allocReg(int reg) {
 	_reg = reg;
 }
 
-int Var::getReg() {
-	return _reg;
-}
-
-
 /****************************************************************************/
 /*                           CLASS STRUCT_MEMBERS                           */
 /****************************************************************************/
 
 StructMembers::StructMembers() : 
+		_members(new vector<Var*>()),
 		_membersNames(new vector<string>()),
 		_membersTypes(new vector<string>()){}
 
-StructMembers::StructMembers(const string membersNames[],
-	const string membersTypes[],int size) : 
+StructMembers::StructMembers(const StructMembers& structMembers) :
+		_members(new vector<Var*>()),
 		_membersNames(new vector<string>()),
 		_membersTypes(new vector<string>()) {
-	if (!membersNames || !membersTypes) {
-		throw InvalidInputException();
-	}
-	if (!size) {
-		throw InvalidInputException();
-	}
-	for (int i = 0; i < size; i++) {
-		if (isNameUsed(membersNames[i])) {
-			throw NameAlreadyExistsException();
-		}
-		if (!isTypeExists(membersTypes[i])) {
-			throw InvalidTypeNameException();
-		}
-		addMember(membersNames[i], membersTypes[i]);
-	}
-}
-
-StructMembers::StructMembers(const vector<string>& membersNames,
-	const vector<string>& membersTypes) : 
-		_membersNames(new vector<string>()),
-		_membersTypes(new vector<string>()) {
-	if (membersNames.size() != membersTypes.size()) {
-		throw InvalidInputException();
-	}
-	for (int i = 0; i < membersNames.size(); i++) {
-		if (isNameUsed(membersNames[i])) {
-			throw NameAlreadyExistsException();
-		}
-		if (!isTypeExists(membersTypes[i])) {
-			throw InvalidTypeNameException();
-		}
-		addMember(membersNames[i], membersTypes[i]);
+	for (int i = 0; i < structMembers.size(); i++) {
+		addMember(structMembers[i]);
 	}
 }
 
 StructMembers::~StructMembers() {
+	for (int i = 0; i < size(); i++) {
+		delete ((*_members)[i]);
+	}
+	delete (_members);
 	delete (_membersNames);
 	delete (_membersTypes);
 }
@@ -138,19 +119,13 @@ void StructMembers::addMember(const Var& var) {
 	if (!isTypeExists(var.getType())) {
 		throw InvalidTypeNameException();
 	}
+	_members->push_back(new Var(var));
 	_membersNames->push_back(var.getName());
 	_membersTypes->push_back(var.getType());
 }
 
-void StructMembers::addMember(const string& name,const string& type) {
-	if (isNameUsed(name)) {
-		throw NameAlreadyExistsException();
-	}
-	if (!isTypeExists(type)) {
-		throw InvalidTypeNameException();
-	}
-	_membersNames->push_back(name);
-	_membersTypes->push_back(type);
+const vector<Var*>& StructMembers::getMembers() const {
+	return *_members;
 }
 
 const vector<string>& StructMembers::getMembersNames() const {
@@ -161,15 +136,15 @@ const vector<string>& StructMembers::getMembersTypes() const {
 	return *_membersTypes;
 }
 
-const string& StructMembers::find(const string& name) const {
-	for (int i = 0; i < getMembersNames().size(); i++) {
-		if (getMembersNames()[i] == name) {
-			return getMembersTypes()[i];
+const Var& StructMembers::find(const string& name) const {
+	for (int i = 0; i < size(); i++) {
+		if (getMembers()[i]->getName() == name) {
+			return *(getMembers()[i]);
 		}
 	}
 	throw VariableNotFoundException();
 }
-	
+
 bool StructMembers::isNameUsed(const string& name) const {
 	const vector<string>::iterator start = _membersNames->begin();
 	const vector<string>::iterator end = _membersNames->end();
@@ -180,9 +155,15 @@ bool StructMembers::isNameUsed(const string& name) const {
 }
 
 int StructMembers::size() const {
-	return _membersNames->size();
+	return getMembers().size();
 }
 
+int StructMembers::memSize() const {
+	int size = 0;
+	for (int i = 0; i < this->size(); i++) {
+		size += getMembers()[i]->getSize();
+	}
+}
 bool StructMembers::isTypeExists(const string& name) const {
 	if (name != "int" && name != "bool" && name != "byte") {
 		return false;
@@ -190,35 +171,26 @@ bool StructMembers::isTypeExists(const string& name) const {
 	return true;
 }
 
+const Var& StructMembers::operator[](int i) const {
+	return *(getMembers()[i]);
+}
+
 /****************************************************************************/
 /*                             CLASS STRUCT_NODE                            */
 /****************************************************************************/
 
-StructNode::StructNode(
-	const string& name,
-	const string membersNames[],
-	const string membersTypes[],
-	int size) : _name(name), _structMems(NULL) {
-	_structMems = new StructMembers(membersNames, membersTypes, size);
-}
-
-StructNode::StructNode(
-	const string& name,
-	const vector<string>& membersNames,
-	const vector<string>& membersTypes) :
-	_name(name), _structMems(NULL) {
-	_structMems = new StructMembers(membersNames, membersTypes);
-}
+StructNode::StructNode(const string& name) :
+		_name(name), _structMems(new StructMembers()){}
 
 StructNode::StructNode(const string& name, const StructMembers& structMems) :
-	_name(name), _structMems(NULL) {
-	_structMems = new StructMembers(
-		structMems.getMembersNames(),
-		structMems.getMembersTypes());
-}
+		_name(name), _structMems(new StructMembers(structMems)){}
 
 StructNode::~StructNode() {
 	delete (_structMems);
+}
+
+void StructNode::addMember(const Var& var) {
+	_structMems->addMember(var);
 }
 
 const string& StructNode::getName() const {
@@ -233,12 +205,16 @@ const vector<string>& StructNode::getMembersTypes() const {
 	return _structMems->getMembersTypes();
 }
 
-const string& StructNode::find(const string& name) const {
+const Var& StructNode::find(const string& name) const {
 	return _structMems->find(name);
 }
 
 int StructNode::size() const {
-	return getMembersNames().size();
+	return _structMems->size();
+}
+
+int StructNode::memSize() const {
+	return _structMems->memSize();
 }
 
 /****************************************************************************/
@@ -246,41 +222,25 @@ int StructNode::size() const {
 /****************************************************************************/
 
 FuncParams::FuncParams() :
+		_parameters(new vector<Var*>()),
 		_paramsNames(new vector<string>()),
 		_paramsTypes(new vector<string>()) {
 }
 
-FuncParams::FuncParams(
-	const string paramsNames[],
-	const string paramsTypes[],
-	int size) : 
+FuncParams::FuncParams(const FuncParams& funcParams) :
+		_parameters(new vector<Var*>()),
 		_paramsNames(new vector<string>()),
 		_paramsTypes(new vector<string>()) {
-	if (!paramsNames || !paramsTypes) {
-		throw InvalidInputException();
-	}
-	if (!size) {
-		throw InvalidInputException();
-	}
-	for (int i = 0; i < size; i++) {
-		addParam(paramsNames[i], paramsTypes[i]);
-	}
-}
-
-FuncParams::FuncParams(
-	const vector<string>& paramsNames,
-	const vector<string>& paramsTypes) :
-		_paramsNames(new vector<string>()),
-		_paramsTypes(new vector<string>()) {
-	if (paramsNames.size() != paramsTypes.size()) {
-		throw InvalidInputException();
-	}
-	for (int i = 0; i < paramsTypes.size(); i++) {
-		addParam(paramsNames[i], paramsTypes[i]);
+	for (int i = 0; i < funcParams.size(); i++) {
+		addParam(funcParams[i]);
 	}
 }
 
 FuncParams::~FuncParams() {
+	for (int i = 0; i < size(); i++) {
+		delete ((*_parameters)[i]);
+	}
+	delete (_parameters);
 	delete (_paramsNames);
 	delete (_paramsTypes);
 }
@@ -291,18 +251,13 @@ void FuncParams::addParam(const Var& var) {
 			throw NameAlreadyExistsException();
 		}
 	}
+	_parameters->push_back(new Var(var));
 	_paramsNames->push_back(var.getName());
 	_paramsTypes->push_back(var.getType());
 }
 
-void FuncParams::addParam(const string& name, const string& type) {
-	if (name != "__temp") {
-		if (isNameUsed(name)) {
-			throw NameAlreadyExistsException();
-		}
-	}
-	_paramsNames->push_back(name);
-	_paramsTypes->push_back(type);
+const vector<Var*>& FuncParams::getParameters() const {
+	return *_parameters;
 }
 
 const vector<string>& FuncParams::getParamsNames() const {
@@ -313,10 +268,10 @@ const vector<string>& FuncParams::getParamsTypes() const {
 	return *_paramsTypes;
 }
 
-const string& FuncParams::find(const string& name) const {
-	for (int i = 0; i < getParamsNames().size(); i++) {
-		if (getParamsNames()[i] == name) {
-			return getParamsTypes()[i];
+const Var& FuncParams::find(const string& name) const {
+	for (int i = 0; i < size(); i++) {
+		if (getParameters()[i]->getName() == name) {
+			return *(getParameters()[i]);
 		}
 	}
 	throw VariableNotFoundException();
@@ -332,7 +287,11 @@ bool FuncParams::isNameUsed(const string& name) const {
 }
 
 int FuncParams::size() const {
-	return _paramsNames->size();
+	return _parameters->size();
+}
+
+const Var& FuncParams::operator[](int i) const {
+	return *(getParameters()[i]);
 }
 
 /****************************************************************************/
@@ -341,51 +300,28 @@ int FuncParams::size() const {
 FuncNode::FuncNode(
 	const string& name,
 	const string& retType) :
-	_name(name), _retType(retType), _funcParams(NULL) {
+	_name(name), _retType(retType), _funcParams(new FuncParams()) {
 	if (!isRetTypeValid(retType)) {
 		throw InvalidTypeNameException();
 	}
-	_funcParams = new FuncParams();
-}
-
-FuncNode::FuncNode(
-	const string& name,
-	const string& retType,
-	const string paramsNames[],
-	const string paramsTypes[],
-	int size) : _name(name), _retType(retType), _funcParams(NULL) {
-	if (!isRetTypeValid(retType)) {
-		throw InvalidTypeNameException();
-	}
-	_funcParams = new FuncParams(paramsNames, paramsTypes, size);
-}
-
-FuncNode::FuncNode(
-	const string& name,
-	const string& retType,
-	const vector<string>& paramsNames,
-	const vector<string>& paramsTypes) : _name(name), _retType(retType), _funcParams(NULL) {
-	if (!isRetTypeValid(retType)) {
-		throw InvalidTypeNameException();
-	}
-	_funcParams = new FuncParams(paramsNames, paramsTypes);
 }
 
 FuncNode::FuncNode(
 	const string& name,
 	const string& retType,
 	const FuncParams& funcParams) :
-	_name(name), _retType(retType), _funcParams(NULL) {
+	_name(name), _retType(retType), _funcParams(new FuncParams(funcParams)) {
 	if (!isRetTypeValid(retType)) {
 		throw InvalidTypeNameException();
 	}
-	_funcParams = new FuncParams(
-		funcParams.getParamsNames(),
-		funcParams.getParamsTypes());
 }
 
 FuncNode::~FuncNode() {
 	delete (_funcParams);
+}
+
+void FuncNode::addParam(const Var& var) {
+	_funcParams->addParam(var);
 }
 
 const string& FuncNode::getName() const {
@@ -404,7 +340,7 @@ const vector<string>& FuncNode::getParamsTypes() const {
 	return _funcParams->getParamsTypes();
 }
 
-const string& FuncNode::find(const string& name) const {
+const Var& FuncNode::find(const string& name) const {
 	return _funcParams->find(name);
 }
 
@@ -414,7 +350,7 @@ void FuncNode::print() const {
 }
 
 int FuncNode::size() const {
-	return getParamsNames().size();
+	return _funcParams->size();
 }
 
 bool FuncNode::isRetTypeValid(const string& name) const {
@@ -531,7 +467,7 @@ void Scope::addVariable(const string& name, const string& type, int size, bool p
 }
 
 void Scope::addVariable(const Var& var, bool passed) {
-	addVariable(var.getName(), var.getType(),var.size() , passed);
+	addVariable(var.getName(), var.getType(), var.getSize(), passed);
 }
 
 const vector<string>& Scope::getTypes() const {
@@ -549,7 +485,7 @@ void Scope::printScope() const {
 	output::endScope(); 
 	for (int i = 0; i < getVariables().size(); i++) {
 			const Var* var = getVariables()[i];
-			output::printID(var->getName(), var->place() , printTypeName(var->getType()));
+			output::printID(var->getName(), var->getPlace() , printTypeName(var->getType()));
 	}
 }
 
@@ -592,7 +528,7 @@ int Scope::bottom() const {
 int Scope::stackSize() const {
 	int size = 0;
 	for (int i = 0; i < getVariables().size(); i++) {
-		size += getVariables()[i]->size();
+		size += getVariables()[i]->getSize();
 	}
 	return size;
 }
@@ -686,7 +622,6 @@ void SymbolTable::addScope(
 	for (int i = 0; i < size; i++) {
 		addVar(paramsNames[i], paramsTypes[i], true);
 	}
-	
 }
 
 // adds a new scope with the given available type names.
@@ -796,14 +731,7 @@ void SymbolTable::addVar(const string& name, const string& type, bool passed) {
 	if (!isTypeExists(type)){
 		throw InvalidTypeNameException();
 	}
-	int paramSize;
-	try {
-		paramSize = findStruct(type).size();
-	}
-	catch (StructNotFoundException e) {
-		paramSize = 1;
-	}
-	_scopes->back()->addVariable(name, type, paramSize, passed);
+	_scopes->back()->addVariable(name, type, typeSize(type), passed);
 	_availableVariables->insert(name);
 }
 
@@ -859,7 +787,10 @@ void SymbolTable::addFunc(
 	}
 	FuncNode* func;
 	try {
-		func = new FuncNode(name, retType, paramsNames, paramsTypes, size);
+		func = new FuncNode(name, retType);
+		for (int i = 0; i < size; i++) {
+			func->addParam(Var(paramsNames[i], paramsTypes[i]));
+		}
 		_functions->push_back(func);
 	}
 	catch (std::exception e) {
@@ -887,7 +818,10 @@ void SymbolTable::addFunc(
 	}
 	FuncNode* func;
 	try {
-		func = new FuncNode(name, retType, paramsNames, paramsTypes);
+		func = new FuncNode(name, retType);
+		for (int i = 0; i < paramsNames.size(); i++) {
+			func->addParam(Var(paramsNames[i], paramsTypes[i]));
+		}
 		_functions->push_back(func);
 	}
 	catch (std::exception e) {
@@ -992,7 +926,18 @@ void SymbolTable::addStruct(
 		throw InvalidInputException();
 	}
 	addType(name);
-	_structs->insert(new StructNode(name, names, types,size));
+	StructNode* structNode;
+	try {
+		structNode = new StructNode(name);
+		for (int i = 0; i < size; i++) {
+			structNode->addMember(Var(names[i], types[i]));
+		}
+		_structs->insert(structNode);
+	} 
+	catch (std::exception e) {
+		delete (structNode);
+		throw;
+	}
 }
 
 // Adds a new struct with the given name, return type and members,
@@ -1010,7 +955,18 @@ void SymbolTable::addStruct(
 		throw NameAlreadyExistsException();
 	}
 	addType(name);
-	_structs->insert(new StructNode(name, names, types));
+	StructNode* structNode;
+	try {
+		structNode = new StructNode(name);
+		for (int i = 0; i < names.size(); i++) {
+			structNode->addMember(Var(names[i], types[i]));
+		}
+		_structs->insert(structNode);
+	}
+	catch (std::exception e) {
+		delete (structNode);
+		throw;
+	}
 }
 	
 // Adds the given struct with the given name, and optional StructMembers
@@ -1119,6 +1075,19 @@ bool SymbolTable::isTypeExists(const string& name) const {
 
 int SymbolTable::scopesSize() const {
 	return _scopes->size();
+}
+
+int SymbolTable::typeSize(const string& type) const {
+	if (type == "int") {
+		return 4;
+	}
+	if (type == "byte") {
+		return 4;
+	}
+	if (type == "bool") {
+		return 4;
+	}
+	return findStruct(type).memSize();
 }
 
 string printTypeName(const string& name) {

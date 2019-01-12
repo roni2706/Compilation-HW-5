@@ -32,7 +32,7 @@ class InvalidInitiatorNameException : public std::exception {};
 
 
 /****************************************************************************/
-/*                                CLASS REG POOL                                 */
+/*                              CLASS REG POOL                              */
 /****************************************************************************/
 class RegPool {
 public:
@@ -43,30 +43,32 @@ public:
 	
 private:
 	bool regPool[N];
-}
+};
 
 /****************************************************************************/
 /*                                CLASS VAR                                 */
 /****************************************************************************/
 class Var {
 public:
+	// Constructors
 	Var(const string& name, const string& type, int place = 0, int size = 1);
+	Var(const Var& var);
+	// Destructor
 	~Var();
+	// Functions
 	const string& getName() const;
 	const string& getType() const;
-	int place() const;
-	int size() const;
+	int getPlace() const;
+	int getSize() const;
+	int getReg() const;
 	void freeReg();
 	void allocReg(int reg);
-	int getReg() const;
-
 private:
 	string _name;
 	string _type;
 	int _place;
 	int _size;
 	int _reg;
-	
 };
 
 /****************************************************************************/
@@ -75,30 +77,26 @@ private:
 
 class StructMembers {
 public:
-	// Constructors
+	// Constructor
 	StructMembers();
-	StructMembers(
-		const string membersNames[],
-		const string membersTypes[],
-		int size);
-	StructMembers(
-		const vector<string>& membersNames,
-		const vector<string>& membersTypes);
+	StructMembers(const StructMembers& structMembers);
 	// Destructor
 	~StructMembers();
 	// Functions
 	void addMember(const Var& var);
-	void addMember(const string& name,const string& type);
+	const vector<Var*>& getMembers() const;
 	const vector<string>& getMembersNames() const;
 	const vector<string>& getMembersTypes() const;
-	const string& find(const string& name) const;
+	const Var& find(const string& name) const;
 	bool isNameUsed(const string& name) const;
 	int size() const;
+	int memSize() const;
 	bool isTypeExists(const string& name) const;
+	const Var& operator[](int i) const;
 private:
+	vector<Var*>* _members;
 	vector<string>* _membersNames;
 	vector<string>* _membersTypes;
-	
 };
 
 /****************************************************************************/
@@ -108,27 +106,20 @@ private:
 class StructNode {
 public:
 	// Constructors
-	StructNode(
-		const string& name,
-		const string membersNames[],
-		const string membersTypes[],
-		int size);
-	StructNode(
-		const string& name,
-		const vector<string>& membersNames,
-		const vector<string>& membersTypes);
+	StructNode(const string& name);
 	StructNode(
 		const string& name,
 		const StructMembers& structMems);
 	// Destructor
 	~StructNode();
 	// Functions
+	void addMember(const Var& var);
 	const string& getName() const;
 	const vector<string>& getMembersNames() const;
 	const vector<string>& getMembersTypes() const;
-	const string& find(const string& name) const;
+	const Var& find(const string& name) const;
 	int size() const;
-
+	int memSize() const;
 private:
 	string _name;
 	StructMembers* _structMems;
@@ -142,25 +133,20 @@ class FuncParams {
 public:
 	// Constructors
 	FuncParams();
-	FuncParams(
-		const string paramsNames[],
-		const string paramsTypes[],
-		int size);
-	FuncParams(
-		const vector<string>& paramsNames,
-		const vector<string>& paramsTypes);
+	FuncParams(const FuncParams& funcParams);
 	// Destructor
 	~FuncParams();
 	// Functions
 	void addParam(const Var& var);
-	void addParam(const string& name, const string& type);
+	const vector<Var*>& getParameters() const;
 	const vector<string>& getParamsNames() const;
 	const vector<string>& getParamsTypes() const;
-	const string& find(const string& name) const;
+	const Var& find(const string& name) const;
 	bool isNameUsed(const string& name) const;
 	int size() const;
-	
+	const Var& operator[](int i) const;
 private:
+	vector<Var*>* _parameters;
 	vector<string>* _paramsNames;
 	vector<string>* _paramsTypes;
 };
@@ -178,26 +164,16 @@ public:
 	FuncNode(
 		const string& name,
 		const string& retType,
-		const string paramsNames[],
-		const string paramsTypes[],
-		int size);
-	FuncNode(
-		const string& name,
-		const string& retType,
-		const vector<string>& paramsNames,
-		const vector<string>& paramsTypes);
-	FuncNode(
-		const string& name,
-		const string& retType,
 		const FuncParams& funcParams);
 	// Destructor
 	~FuncNode();
 	// Functions
+	void addParam(const Var& var);
 	const string& getName()const;
 	const string& getRetType()const;
 	const vector<string>& getParamsNames() const;
 	const vector<string>& getParamsTypes() const;
-	const string& find(const string& name)const;
+	const Var& find(const string& name)const;
 	void print()const;
 	int size() const;
 	bool isRetTypeValid(const string& name) const;
@@ -284,7 +260,7 @@ public:
 	// Destroys the SymbolTable with all its content.
 	~SymbolTable();
 
-	// adds a new scope with the given available type names.
+	// adds a new empty scope.
 	void addScope(
 		const string& initiator,
 		const string& retType = "void");
@@ -474,6 +450,9 @@ public:
 	int scopesSize() const;
 	
 private:
+
+	int typeSize(const string& type) const;
+
 	vector<Scope*>* _scopes;
 	set<StructNode*>* _structs;
 	vector<FuncNode*>* _functions;

@@ -515,7 +515,7 @@ Statement : LBRACE {
 			const string& structName =
 					table->findVar(*($<str>left)).getType();
 			const string& leftType = 
-				table->findStruct(structName).find(*($<str>mid));;
+				table->findStruct(structName).find(*($<str>mid)).getType();
 			if ((leftType != rightType)&&
 				(leftType != "int" || rightType != "byte")){
 				// Mismatch of assing operation
@@ -770,7 +770,7 @@ ExpList[result] : Exp {
 VarDecl[result] : Type ID {
 			try {
 				table->addVar(*($<str>ID),*($<str>Type));
-				$<var>result = &(table->findVar(*($<str>ID)));
+				$<var>result = const_cast<Var*>(&(table->findVar(*($<str>ID))));
 			}
 			catch (NameAlreadyExistsException e){
 				// Redeclaration of variable
@@ -786,7 +786,7 @@ VarDecl[result] : Type ID {
 		| StructType ID {
 			try {
 				table->addVar(*($<str>ID),*($<str>StructType));
-				$<var>result = &(table->findVar(*($<str>ID)));
+				$<var>result = const_cast<Var*>(&(table->findVar(*($<str>ID))));
 			}
 			catch (InvalidTypeNameException e){
 				// Redeclaration of variable
@@ -864,14 +864,12 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			else {
 				$<var>result = new Var("__temp","byte");
 			}
-			
 			$<var>result->allocReg(regPool->allocateReg());
 			regPool->freeReg($<var>left->getReg());
 			regPool->freeReg($<var>right->getReg());
-			
+			// TODO: emit code
 			$<var>left->freeReg();
 			$<var>right->freeReg();
-						
 			if (($<var>left)->getName() == "__temp"){
 				delete ($<var>left);
 			}
@@ -907,10 +905,9 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			$<var>result->allocReg(regPool->allocateReg());
 			regPool->freeReg($<var>left->getReg());
 			regPool->freeReg($<var>right->getReg());
-			
+			// TODO: emit code
 			$<var>left->freeReg();
 			$<var>right->freeReg();
-			
 			if (($<var>left)->getName() == "__temp"){
 				delete ($<var>left);
 			}
@@ -925,14 +922,15 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /****************************************************************************/
 		| ID {
 			try {
-				$<var>result = &(table->findVar(*($<str>ID)));
-				$<var>result->allocReg(regPool->allocateReg());
+				$<var>result = const_cast<Var*>(&(table->findVar(*($<str>ID))));
 			}
 			catch (VariableNotFoundException e){
 				// Using undefined variable
 				errorUndef(yylineno,*($<str>ID));
 				exit(0);
 			}
+			$<var>result->allocReg(regPool->allocateReg());
+			// TODO: emit code
 		}
 /****************************************************************************/
 
@@ -964,14 +962,15 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				const string& structName =
 					table->findVar(*($<str>left)).getType();
 				strct = &(table->findStruct(structName));
-				$<var>result = new Var("__temp",strct->find(*($<str>right)));
-				$<var>result->allocReg(regPool->allocateReg());
+				$<var>result = new Var("__temp",strct->find(*($<str>right)).getType());
 			}
 			catch (VariableNotFoundException e){
 				// Using undefined struct member
 				errorUndefStructMember(yylineno,*($<str>left));
 				exit(0);
 			}
+			$<var>result->allocReg(regPool->allocateReg());
+			// TODO: emit code
 		}
 /****************************************************************************/
 
@@ -981,6 +980,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 		| Call {
 			$<var>result = $<var>Call;
 			$<var>result->allocReg(regPool->allocateReg());
+			// TODO: emit code
+			// result = Call
 		}
 /****************************************************************************/
 
@@ -990,6 +991,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 		| NUM {
 			$<var>result = new Var("__temp","int");
 			$<var>result->allocReg(regPool->allocateReg());
+			// TODO: emit code
+			// result = NUM
 		}
 /****************************************************************************/
 
@@ -1006,6 +1009,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			}
 			$<var>result = new Var("__temp","byte");
 			$<var>result->allocReg(regPool->allocateReg());
+			// TODO: emit code
+			// result = NUM
 		}
 /****************************************************************************/
 
@@ -1014,6 +1019,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /****************************************************************************/
 		| STRING {
 			$<var>result = new Var("__temp","string");
+			// TODO: emit code
 		}
 /****************************************************************************/
 
@@ -1023,6 +1029,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 		| TRUE {
 			$<var>result = new Var("__temp","bool");
 			$<var>result->allocReg(regPool->allocateReg());
+			// TODO: emit code
+			// result = 1
 		}
 /****************************************************************************/
 
@@ -1032,6 +1040,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 		| FALSE {
 			$<var>result = new Var("__temp","bool");
 			$<var>result->allocReg(regPool->allocateReg());
+			// TODO: emit code
+			// result = 0
 		}
 /****************************************************************************/
 
@@ -1049,6 +1059,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			$<var>result = new Var("__temp","bool");
 			$<var>result->allocReg(regPool->allocateReg());
 			regPool->freeReg($<var>left->getReg());
+			// TODO: emit code
+			// result = 1 - left
 			$<var>left->freeReg();
 			if (leftName == "__temp"){
 				delete ($<var>left);
@@ -1074,10 +1086,10 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			$<var>result->allocReg(regPool->allocateReg());
 			regPool->freeReg($<var>left->getReg());
 			regPool->freeReg($<var>right->getReg());
-			
+			// TODO: emit code
+			// result = left AND right
 			$<var>left->freeReg();
 			$<var>right->freeReg();
-			
 			if (($<var>left)->getName() == "__temp"){
 				delete ($<var>left);
 			}
@@ -1102,14 +1114,13 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			$<var>result = new Var("__temp","bool");	
-			
 			$<var>result->allocReg(regPool->allocateReg());
 			regPool->freeReg($<var>left->getReg());
 			regPool->freeReg($<var>right->getReg());
-			
+			// TODO: emit code
+			// result = left OR right
 			$<var>left->freeReg();
 			$<var>right->freeReg();
-
 			if (($<var>left)->getName() == "__temp"){
 				delete ($<var>left);
 			}
@@ -1139,10 +1150,13 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			$<var>result->allocReg(regPool->allocateReg());
 			regPool->freeReg($<var>left->getReg());
 			regPool->freeReg($<var>right->getReg());
-			
+			// TODO: emit code
+			// if left REL right
+			//		result = 1
+			// else
+			// 		result = 0
 			$<var>left->freeReg();
 			$<var>right->freeReg();
-			
 			if (($<var>left)->getName() == "__temp"){
 				delete ($<var>left);
 			}
@@ -1169,15 +1183,13 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			$<var>result = new Var("__temp","bool");
-			
 			$<var>result->allocReg(regPool->allocateReg());
 			regPool->freeReg($<var>left->getReg());
 			regPool->freeReg($<var>right->getReg());
-			
+			// TODO: emit code
+			// result = left AND right
 			$<var>left->freeReg();
 			$<var>right->freeReg();
-			
-
 			if (($<var>left)->getName() == "__temp") {
 				delete ($<var>left);
 			}

@@ -14,7 +14,7 @@ using std::string;
 typedef union {
 	int num;
 	string* str;
-	const Var* var;
+	Var* var;
 	StructMembers* structMembers;
 	StructNode* structNode;
 	FuncParams* funcParams;
