@@ -19,6 +19,7 @@ typedef union {
 		vector<int> truelist;
 		vector<int> falselist;
 		vector<int> nextlist;
+		string quad;
 	} *var;
 	StructMembers* structMembers;
 	StructNode* structNode;
