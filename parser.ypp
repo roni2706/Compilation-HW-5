@@ -1086,9 +1086,9 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 
 /* Exp -> Exp AND Exp */
 /****************************************************************************/
-		| Exp[left] AND {
-			($<var>result)->quad = genLabel();
-		} Exp[right] { 
+		| Exp[left] {
+			($<var>2)->quad = genLabel();
+		} AND Exp[right] { 
 			if (($<var>left)->var->getType() != "bool"){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
@@ -1100,7 +1100,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			($<var>result)->var = new Var("__temp","bool");	
-			backpatch(($<var>left)->truelist,($<var>result)->quad);
+			backpatch(($<var>left)->truelist,($<var>2)->quad);
 			($<var>result)->falselist = merge(($<var>left)->falselist,($<var>right)->falselist);
 			($<var>result)->truelist =($<var>right)->truelist;
 
@@ -1116,9 +1116,9 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 
 /* Exp -> Exp OR Exp */
 /****************************************************************************/
-		| Exp[left] OR {
-			($<var>result)->quad = genLabel();
-		} Exp[right] {
+		| Exp[left] {
+			($<var>2)->quad = genLabel();
+		} OR Exp[right] {
 			if (($<var>left)->var->getType() != "bool"){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
@@ -1130,7 +1130,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			($<var>result)->var = new Var("__temp","bool");	
-			codeBuffer.bpatch(($<var>left)->falselist,($<var>result)->quad);
+			codeBuffer.bpatch(($<var>left)->falselist,($<var>2)->quad);
 			($<var>result)->truelist = merge(($<var>left)->truelist,($<var>right)->truelist);
 			($<var>result)->falselist =($<var>right)->falselist;
 			if (($<var>left)->var->getName() == "__temp"){
