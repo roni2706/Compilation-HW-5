@@ -9,7 +9,6 @@
 	#include "parser.tab.hpp"
 	
 	using namespace output;
-	using namespace bp;
 	using std::cout;
 	using std::endl;
 	
@@ -19,7 +18,7 @@
 	
 	SymbolTable* table = NULL;
 	RegPool* regPool;
-	CodeBuffer codeBuffer = instance();
+	CodeBuffer codeBuffer = CodeBuffer::instance();
 	
 %}
 

@@ -14,7 +14,7 @@ using std::string;
 typedef union {
 	int num;
 	string* str;
-	struct {
+	class {
 		Var* var;
 		vector<int> truelist;
 		vector<int> falselist;
