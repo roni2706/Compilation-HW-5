@@ -166,7 +166,9 @@ int StructMembers::memSize() const {
 	for (int i = 0; i < this->size(); i++) {
 		size += getMembers()[i]->getSize();
 	}
+	return size;
 }
+
 bool StructMembers::isTypeExists(const string& name) const {
 	if (name != "int" && name != "bool" && name != "byte") {
 		return false;
@@ -1082,13 +1084,13 @@ int SymbolTable::scopesSize() const {
 
 int SymbolTable::typeSize(const string& type) const {
 	if (type == "int") {
-		return 4;
+		return 1;
 	}
 	if (type == "byte") {
-		return 4;
+		return 1;
 	}
 	if (type == "bool") {
-		return 4;
+		return 1;
 	}
 	return findStruct(type).memSize();
 }
