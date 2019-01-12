@@ -14,12 +14,12 @@ using std::string;
 typedef union {
 	int num;
 	string* str;
-	class {
+	struct {
 		Var* var;
 		vector<int> truelist;
 		vector<int> falselist;
 		vector<int> nextlist;
-	} var;
+	} *var;
 	StructMembers* structMembers;
 	StructNode* structNode;
 	FuncParams* funcParams;

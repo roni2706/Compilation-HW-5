@@ -18,7 +18,7 @@
 	
 	SymbolTable* table = NULL;
 	RegPool* regPool;
-	CodeBuffer codeBuffer = CodeBuffer::instance();
+	CodeBuffer &codeBuffer = CodeBuffer::instance();
 	
 %}
 
@@ -267,13 +267,13 @@ Formals : FormalsList {
 FormalsList[result] : FormalDecl {
 			try{
 				FuncParams* params = new FuncParams();
-				params->addParam(*($<var>FormalDecl));
+				params->addParam(*($<var>FormalDecl->var));
 				$<funcParams>result = params;
-				delete ($<var>FormalDecl);
+				delete ($<var>FormalDecl->var);
 			}
 			catch (NameAlreadyExistsException e){
 				// Redeclaration of function parameter
-				errorDef(yylineno,($<var>FormalDecl)->getName());
+				errorDef(yylineno,($<var>FormalDecl->var)->getName());
 				exit(0);
 			}
 			
@@ -285,13 +285,13 @@ FormalsList[result] : FormalDecl {
 /****************************************************************************/
 		| FormalsList[right] COMMA FormalDecl {
 			try {
-				($<funcParams>right)->addParam(*($<var>FormalDecl));
+				($<funcParams>right)->addParam(*($<var>FormalDecl->var));
 				$<funcParams>result = $<funcParams>right;
-				delete ($<var>FormalDecl);
+				delete ($<var>FormalDecl->var);
 			}
 			catch (NameAlreadyExistsException e){
 				// Redeclaration of function parameter
-				errorDef(yylineno,($<var>FormalDecl)->getName());
+				errorDef(yylineno,($<var>FormalDecl->var)->getName());
 				exit(0);
 			}		
 		}
@@ -301,7 +301,7 @@ FormalsList[result] : FormalDecl {
 /* FormalDecl -> Type ID */
 /****************************************************************************/
 FormalDecl : Type ID {
-			$<var>FormalDecl = new Var(*($<str>ID),*($<str>Type));
+			$<var>FormalDecl->var = new Var(*($<str>ID),*($<str>Type));
 			delete ($<str>ID);
 			delete ($<str>Type);
 		}
@@ -320,7 +320,7 @@ FormalDecl : Type ID {
 		/********************************************************************/
 		} ID {
 		/********************************************************************/
-			$<var>FormalDecl = new Var(*($<str>ID),*($<str>StructType));
+			$<var>FormalDecl->var = new Var(*($<str>ID),*($<str>StructType));
 			delete ($<str>ID);
 			delete ($<str>StructType);
 		}
@@ -332,13 +332,13 @@ FormalDecl : Type ID {
 StructMemList[result] : StructMem {
 			try {
 				StructMembers* members = new StructMembers();
-				members->addMember(*($<var>StructMem));
+				members->addMember(*($<var>StructMem->var));
 				$<structMembers>result = members;
-				delete ($<var>StructMem);
+				delete ($<var>StructMem->var);
 			}
 			catch (NameAlreadyExistsException e){
 				// Redeclaration of struct members
-				errorDef(yylineno,($<var>StructMem)->getName());
+				errorDef(yylineno,($<var>StructMem->var)->getName());
 				exit(0);
 			}
 		}
@@ -349,13 +349,13 @@ StructMemList[result] : StructMem {
 /****************************************************************************/
 		| StructMemList[right] StructMem  {
 			try {
-				($<structMembers>right)->addMember(*($<var>StructMem));
+				($<structMembers>right)->addMember(*($<var>StructMem->var));
 				$<structMembers>result = $<structMembers>right;
-				delete ($<var>StructMem);
+				delete ($<var>StructMem->var);
 			}
 			catch (NameAlreadyExistsException e){
 				// Redeclaration of struct members
-				errorDef(yylineno,($<var>StructMem)->getName());
+				errorDef(yylineno,($<var>StructMem->var)->getName());
 				exit(0);
 			}
 		}
@@ -365,7 +365,7 @@ StructMemList[result] : StructMem {
 /* StructMem -> Type ID SC */
 /****************************************************************************/
 StructMem : Type ID SC {
-			$<var>StructMem = new Var(*($<str>ID),*($<str>Type));
+			$<var>StructMem->var = new Var(*($<str>ID),*($<str>Type));
 			delete ($<str>ID);
 			delete ($<str>Type);
 		}
@@ -419,10 +419,10 @@ Statement : LBRACE {
 /* Statements -> VarDecl ASSIGN Exp SC */
 /****************************************************************************/
 		| VarDecl[left] ASSIGN Exp[right] SC {
-			const string& leftType = ($<var>left).var->getType();
-			const string& leftName = ($<var>left).var->getName();
-			const string& rightType = ($<var>right).var->getType();
-			const string& rightName = ($<var>right).var->getName();
+			const string& leftType = ($<var>left)->var->getType();
+			const string& leftName = ($<var>left)->var->getName();
+			const string& rightType = ($<var>right)->var->getType();
+			const string& rightName = ($<var>right)->var->getName();
 			if ((leftType != rightType)&&
 				(leftType != "int" || rightType != "byte")){
 				// Mismatch of assing operation
@@ -430,7 +430,7 @@ Statement : LBRACE {
 				exit(0);
 			}
 			if (rightName == "__temp"){
-				delete ($<var>right).var;
+				delete ($<var>right)->var;
 			}
 		}
 /****************************************************************************/
@@ -451,8 +451,8 @@ Statement : LBRACE {
 		/********************************************************************/
 		} Exp[right] SC { 
 		/********************************************************************/
-			const string& rightType = ($<var>right).var->getType();
-			const string& rightName = ($<var>right).var->getName();
+			const string& rightType = ($<var>right)->var->getType();
+			const string& rightName = ($<var>right)->var->getName();
 			const string& leftType = (
 				table->findVar(*($<str>left))).getType();
 			const string& leftName = (
@@ -464,7 +464,7 @@ Statement : LBRACE {
 				exit(0);
 			}
 			if (rightName == "__temp"){
-				delete ($<var>right).var;
+				delete ($<var>right)->var;
 			}
 		}
 /****************************************************************************/
@@ -505,8 +505,8 @@ Statement : LBRACE {
 		/********************************************************************/
 		} ASSIGN Exp[right] SC {
 		/********************************************************************/
-			const string& rightType = ($<var>right).var->getType();
-			const string& rightName = ($<var>right).var->getName();
+			const string& rightType = ($<var>right)->var->getType();
+			const string& rightName = ($<var>right)->var->getName();
 			const string& structName =
 					table->findVar(*($<str>left)).getType();
 			const string& leftType = 
@@ -518,7 +518,7 @@ Statement : LBRACE {
 				exit(0);
 			}
 			if (rightName == "__temp"){
-				delete ($<var>right).var;
+				delete ($<var>right)->var;
 			}
 		}
 /****************************************************************************/
@@ -549,8 +549,8 @@ Statement : LBRACE {
 /****************************************************************************/
 		| RETURN Exp[right] SC {
 			const string& leftType = table->getScopeRetType();
-			const string& rightType = ($<var>right).var->getType();
-			const string& rightName = ($<var>right).var->getName();
+			const string& rightType = ($<var>right)->var->getType();
+			const string& rightName = ($<var>right)->var->getName();
 			if ((leftType != rightType)&&
 				(leftType != "int" || rightType != "byte")){
 				// Mismatch of return type
@@ -560,7 +560,7 @@ Statement : LBRACE {
 			codeBuffer.bpatch(($<var>right).truelist,genLabel());
 			codeBuffer.bpatch(($<var>right).falselist,genLabel());
 			if (rightName == "__temp"){
-				delete ($<var>right).var;
+				delete ($<var>right)->var;
 			}
 		}
 /****************************************************************************/
@@ -718,7 +718,7 @@ Call[result] : ID LPAREN {
 					exit(0);
 				}
 			}
-			($<var>result).var = new Var("__temp",func->getRetType());
+			($<var>result)->var = new Var("__temp",func->getRetType());
 			// TODO: emit code
 			// call function
 		}
@@ -775,7 +775,7 @@ ExpList[result] : Exp {
 VarDecl[result] : Type ID {
 			try {
 				table->addVar(*($<str>ID),*($<str>Type));
-				($<var>result).var = const_cast<Var*>(&(table->findVar(*($<str>ID))));
+				($<var>result)->var = const_cast<Var*>(&(table->findVar(*($<str>ID))));
 			}
 			catch (NameAlreadyExistsException e){
 				// Redeclaration of variable
@@ -793,7 +793,7 @@ VarDecl[result] : Type ID {
 		| StructType ID {
 			try {
 				table->addVar(*($<str>ID),*($<str>StructType));
-				($<var>result).var = const_cast<Var*>(&(table->findVar(*($<str>ID))));
+				($<var>result)->var = const_cast<Var*>(&(table->findVar(*($<str>ID))));
 			}
 			catch (InvalidTypeNameException e){
 				// Redeclaration of variable
@@ -850,7 +850,7 @@ StructType : STRUCT ID {
 /* Exp -> LPAREN Exp RPAREN */
 /****************************************************************************/
 Exp[result]	: LPAREN Exp[left] RPAREN {
-			($<var>result).var = $<var>left;
+			($<var>result)->var = $<var>left;
 			// #NoEmit
 		}
 /****************************************************************************/
@@ -859,36 +859,36 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> Exp MUL Exp */
 /****************************************************************************/
 		| Exp[left] MUL Exp[right] { 
-			if ((($<var>left).var->getType() != "int") && 
-				(($<var>left).var->getType() != "byte")){
+			if ((($<var>left)->var->getType() != "int") && 
+				(($<var>left)->var->getType() != "byte")){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);	
 			}
-			if ((($<var>right).var->getType() != "int") && 
-				(($<var>right).var->getType() != "byte")){
+			if ((($<var>right)->var->getType() != "int") && 
+				(($<var>right)->var->getType() != "byte")){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);	
 			}
-			if ((($<var>left).var->getType() == "int") || 
-				(($<var>right).var->getType() == "int")){
-				($<var>result).var = new Var("__temp","int");
+			if ((($<var>left)->var->getType() == "int") || 
+				(($<var>right)->var->getType() == "int")){
+				($<var>result)->var = new Var("__temp","int");
 			}
 			else {
-				($<var>result).var = new Var("__temp","byte");
+				($<var>result)->var = new Var("__temp","byte");
 			}
-			($<var>result).var->allocReg(regPool->allocateReg());
-			regPool->freeReg(($<var>left).var->getReg());
-			regPool->freeReg(($<var>right).var->getReg());
+			($<var>result)->var->allocReg(regPool->allocateReg());
+			regPool->freeReg(($<var>left)->var->getReg());
+			regPool->freeReg(($<var>right)->var->getReg());
 			// TODO: emit code
-			($<var>left).var->freeReg();
-			($<var>right).var->freeReg();
-			if (($<var>left).var->getName() == "__temp"){
-				delete ($<var>left).var;
+			($<var>left)->var->freeReg();
+			($<var>right)->var->freeReg();
+			if (($<var>left)->var->getName() == "__temp"){
+				delete ($<var>left)->var;
 			}
-			if (($<var>right).var->getName() == "__temp"){
-				delete ($<var>right).var;
+			if (($<var>right)->var->getName() == "__temp"){
+				delete ($<var>right)->var;
 			}
 		}
 /****************************************************************************/
@@ -897,36 +897,36 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> Exp ADD Exp */
 /****************************************************************************/
 		| Exp[left] ADD Exp[right] {
-			if ((($<var>left).var->getType() != "int") && 
-				(($<var>left).var->getType() != "byte")){
+			if ((($<var>left)->var->getType() != "int") && 
+				(($<var>left)->var->getType() != "byte")){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);	
 			}
-			if ((($<var>right).var->getType() != "int") && 
-				(($<var>right).var->getType() != "byte")){
+			if ((($<var>right)->var->getType() != "int") && 
+				(($<var>right)->var->getType() != "byte")){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);	
 			}
-			if ((($<var>left).var->getType() == "int") || 
-				(($<var>right).var->getType() == "int")){
-				($<var>result).var = new Var("__temp","int");
+			if ((($<var>left)->var->getType() == "int") || 
+				(($<var>right)->var->getType() == "int")){
+				($<var>result)->var = new Var("__temp","int");
 			}
 			else {
-				($<var>result).var = new Var("__temp","byte");
+				($<var>result)->var = new Var("__temp","byte");
 			}
-			($<var>result).var->allocReg(regPool->allocateReg());
-			regPool->freeReg(($<var>left).var->getReg());
-			regPool->freeReg(($<var>right).var->getReg());
+			($<var>result)->var->allocReg(regPool->allocateReg());
+			regPool->freeReg(($<var>left)->var->getReg());
+			regPool->freeReg(($<var>right)->var->getReg());
 			// TODO: emit code
-			($<var>left).var->freeReg();
-			($<var>right).var->freeReg();
-			if (($<var>left).var->getName() == "__temp"){
-				delete ($<var>left).var;
+			($<var>left)->var->freeReg();
+			($<var>right)->var->freeReg();
+			if (($<var>left)->var->getName() == "__temp"){
+				delete ($<var>left)->var;
 			}
-			if (($<var>right).var->getName() == "__temp"){
-				delete ($<var>right).var;
+			if (($<var>right)->var->getName() == "__temp"){
+				delete ($<var>right)->var;
 			}
 		}
 /****************************************************************************/
@@ -936,14 +936,14 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /****************************************************************************/
 		| ID {
 			try {
-				($<var>result).var = const_cast<Var*>(&(table->findVar(*($<str>ID))));
+				($<var>result)->var = const_cast<Var*>(&(table->findVar(*($<str>ID))));
 			}
 			catch (VariableNotFoundException e){
 				// Using undefined variable
 				errorUndef(yylineno,*($<str>ID));
 				exit(0);
 			}
-			($<var>result).var->allocReg(regPool->allocateReg());
+			($<var>result)->var->allocReg(regPool->allocateReg());
 			// TODO: emit code
 		}
 /****************************************************************************/
@@ -976,14 +976,14 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				const string& structName =
 					table->findVar(*($<str>left)).getType();
 				strct = &(table->findStruct(structName));
-				($<var>result).var = new Var("__temp",strct->find(*($<str>right)).getType());
+				($<var>result)->var = new Var("__temp",strct->find(*($<str>right)).getType());
 			}
 			catch (VariableNotFoundException e){
 				// Using undefined struct member
 				errorUndefStructMember(yylineno,*($<str>left));
 				exit(0);
 			}
-			($<var>result).var->allocReg(regPool->allocateReg());
+			($<var>result)->var->allocReg(regPool->allocateReg());
 			// TODO: emit code
 		}
 /****************************************************************************/
@@ -992,8 +992,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> Call */
 /****************************************************************************/
 		| Call {
-			($<var>result).var = $<var>Call;
-			($<var>result).var->allocReg(regPool->allocateReg());
+			($<var>result)->var = $<var>Call;
+			($<var>result)->var->allocReg(regPool->allocateReg());
 			// TODO: emit code
 			// result = Call
 		}
@@ -1003,9 +1003,9 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> NUM */
 /****************************************************************************/
 		| NUM {
-			($<var>result).var = new Var("__temp","int");
-			($<var>result).var->allocReg(regPool->allocateReg());
-			emit(loadi(($<var>result).var->getReg(),$<num>NUM));
+			($<var>result)->var = new Var("__temp","int");
+			($<var>result)->var->allocReg(regPool->allocateReg());
+			emit(loadi(($<var>result)->var->getReg(),$<num>NUM));
 		}
 /****************************************************************************/
 
@@ -1020,9 +1020,9 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				errorByteTooLarge(yylineno,ss.str());
 				exit(0);
 			}
-			($<var>result).var = new Var("__temp","byte");
-			($<var>result).var->allocReg(regPool->allocateReg());
-			emit(loadi(($<var>result).var->getReg(),$<num>NUM));
+			($<var>result)->var = new Var("__temp","byte");
+			($<var>result)->var->allocReg(regPool->allocateReg());
+			emit(loadi(($<var>result)->var->getReg(),$<num>NUM));
 		}
 /****************************************************************************/
 
@@ -1030,7 +1030,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> STRING */
 /****************************************************************************/
 		| STRING {
-			($<var>result).var = new Var("__temp","string");
+			($<var>result)->var = new Var("__temp","string");
 			// TODO: emit code
 		}
 /****************************************************************************/
@@ -1039,7 +1039,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> TRUE */
 /****************************************************************************/
 		| TRUE {
-			($<var>result).var = new Var("__temp","bool");
+			($<var>result)->var = new Var("__temp","bool");
 			($<var>result).truelist = emitWithPatch("goto ");
 		}
 /****************************************************************************/
@@ -1048,7 +1048,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> FALSE */
 /****************************************************************************/
 		| FALSE {
-			($<var>result).var = new Var("__temp","bool");
+			($<var>result)->var = new Var("__temp","bool");
 			($<var>result).falselist = emitWithPatch("goto ");
 			}
 /****************************************************************************/
@@ -1057,19 +1057,19 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> NOT Exp */
 /****************************************************************************/
 		| NOT Exp[left] {
-			const string& leftType = ($<var>left).var->getType();
-			const string& leftName = ($<var>left).var->getName();
+			const string& leftType = ($<var>left)->var->getType();
+			const string& leftName = ($<var>left)->var->getName();
 			if (leftType != "bool"){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);
 			}
-			($<var>result).var = new Var("__temp","bool");
+			($<var>result)->var = new Var("__temp","bool");
 			($<var>result).truelist = ($<var>left).falselist;
 			($<var>result).falselist = ($<var>left).truelist;
 			
 			if (leftName == "__temp"){
-				delete ($<var>left).var;
+				delete ($<var>left)->var;
 			}
 		}
 /****************************************************************************/
@@ -1080,26 +1080,26 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 		| Exp[left] AND {
 			string beforeRight = codeBuffer.genLabel());			
 		} Exp[right] { 
-			if (($<var>left).var->getType() != "bool"){
+			if (($<var>left)->var->getType() != "bool"){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);
 			}
-			if (($<var>right).var->getType() != "bool"){
+			if (($<var>right)->var->getType() != "bool"){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);
 			}
-			($<var>result).var = new Var("__temp","bool");	
+			($<var>result)->var = new Var("__temp","bool");	
 			codeBuffer.bpatch(($<var>left).truelist,beforeRight);
 			($<var>result).falselist = merge(($<var>left).falselist,($<var>right).falselist);
 			($<var>result).truelist =($<var>right).truelist;
 
-			if (($<var>left).var->getName() == "__temp"){
-				delete ($<var>left).var;
+			if (($<var>left)->var->getName() == "__temp"){
+				delete ($<var>left)->var;
 			}
-			if (($<var>right).var->getName() == "__temp"){
-				delete ($<var>right).var;
+			if (($<var>right)->var->getName() == "__temp"){
+				delete ($<var>right)->var;
 			}
 		}
 /****************************************************************************/
@@ -1110,25 +1110,25 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 		| Exp[left] OR {
 			string beforeRight = codeBuffer.genLabel());
 		} Exp[right] {
-			if (($<var>left).var->getType() != "bool"){
+			if (($<var>left)->var->getType() != "bool"){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);
 			}
-			if (($<var>right).var->getType() != "bool"){
+			if (($<var>right)->var->getType() != "bool"){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);
 			}
-			($<var>result).var = new Var("__temp","bool");	
+			($<var>result)->var = new Var("__temp","bool");	
 			codeBuffer.bpatch(($<var>left).falselist,beforeRight);
 			($<var>result).truelist = merge(($<var>left).truelist,($<var>right).truelist);
 			($<var>result).falselist =($<var>right).falselist;
-			if (($<var>left).var->getName() == "__temp"){
-				delete ($<var>left).var;
+			if (($<var>left)->var->getName() == "__temp"){
+				delete ($<var>left)->var;
 			}
-			if (($<var>right).var->getName() == "__temp"){
-				delete ($<var>right).var;
+			if (($<var>right)->var->getName() == "__temp"){
+				delete ($<var>right)->var;
 			}
 		}
 /****************************************************************************/
@@ -1137,21 +1137,21 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> Exp REL Exp */
 /****************************************************************************/
 		| Exp[left] REL Exp[right] {
-			if ((($<var>left).var->getType() != "int")&&
-				(($<var>left).var->getType() != "byte")){
+			if ((($<var>left)->var->getType() != "int")&&
+				(($<var>left)->var->getType() != "byte")){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);
 			}
-			if ((($<var>right).var->getType() != "int")&&
-				(($<var>right).var->getType() != "byte")){
+			if ((($<var>right)->var->getType() != "int")&&
+				(($<var>right)->var->getType() != "byte")){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);
 			}
-			($<var>result).var = new Var("__temp","bool");
-			regPool->freeReg(($<var>left).var->getReg());
-			regPool->freeReg(($<var>right).var->getReg());
+			($<var>result)->var = new Var("__temp","bool");
+			regPool->freeReg(($<var>left)->var->getReg());
+			regPool->freeReg(($<var>right)->var->getReg());
 			stringstream code;
 			if ( *($<str>REL) == "<") {
 				code << "blt";
@@ -1165,21 +1165,21 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			code 
 				<< branchOption
 				<< " $" 
-				<< ($<var>left).var->getReg() 
+				<< ($<var>left)->var->getReg() 
 				<< ",$" 
-				<< ($<var>right).var->getReg()
+				<< ($<var>right)->var->getReg()
 				<< ",";
 			($<var>left).truelist = emitWithPatch(code.str());
 			($<var>left).falselist = emitWithPatch("goto ");
 			
-			($<var>left).var->freeReg();
-			($<var>right).var->freeReg();
+			($<var>left)->var->freeReg();
+			($<var>right)->var->freeReg();
 			delete($<str>REL);
-			if (($<var>left).var->getName() == "__temp"){
-				delete ($<var>left).var;
+			if (($<var>left)->var->getName() == "__temp"){
+				delete ($<var>left)->var;
 			}
-			if (($<var>right).var->getName() == "__temp"){
-				delete ($<var>right).var;
+			if (($<var>right)->var->getName() == "__temp"){
+				delete ($<var>right)->var;
 			}
 		}
 /****************************************************************************/
@@ -1188,21 +1188,21 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> Exp EQ Exp */
 /****************************************************************************/
 		| Exp[left] EQ Exp[right] {
-			if ((($<var>left).var->getType() != "int")&&
-				(($<var>left).var->getType() != "byte")){
+			if ((($<var>left)->var->getType() != "int")&&
+				(($<var>left)->var->getType() != "byte")){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);
 			}
-			if ((($<var>right).var->getType() != "int")&&
-				(($<var>right).var->getType() != "byte")){
+			if ((($<var>right)->var->getType() != "int")&&
+				(($<var>right)->var->getType() != "byte")){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);
 			}
-			($<var>result).var = new Var("__temp","bool");
-			regPool->freeReg(($<var>left).var->getReg());
-			regPool->freeReg(($<var>right).var->getReg());
+			($<var>result)->var = new Var("__temp","bool");
+			regPool->freeReg(($<var>left)->var->getReg());
+			regPool->freeReg(($<var>right)->var->getReg());
 			stringstream code;
 			if ( *($<str>EQ) == "==") {
 				code << "beq";
@@ -1211,20 +1211,20 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			}
 			code
 				<< " $"
-				<< ($<var>left).var->getReg()
+				<< ($<var>left)->var->getReg()
 				<< ",$"
-				<< ($<var>right).var->getReg()
+				<< ($<var>right)->var->getReg()
 				<< ",";
 			($<var>left).truelist = emitWithPatch(code.str());
 			($<var>left).falselist = emitWithPatch("goto ");
-			($<var>left).var->freeReg();
-			($<var>right).var->freeReg();
+			($<var>left)->var->freeReg();
+			($<var>right)->var->freeReg();
 			delete($<str>EQ);
-			if (($<var>left).var->getName() == "__temp") {
-				delete ($<var>left).var;
+			if (($<var>left)->var->getName() == "__temp") {
+				delete ($<var>left)->var;
 			}
-			if (($<var>right).var->getName() == "__temp") {
-				delete ($<var>right).var;
+			if (($<var>right)->var->getName() == "__temp") {
+				delete ($<var>right)->var;
 			}
 		}
 /****************************************************************************/
