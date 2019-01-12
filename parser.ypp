@@ -20,13 +20,14 @@
 	RegPool* regPool;
 	CodeBuffer &codeBuffer = CodeBuffer::instance();
 
-	string genLable();
+	string genLabel();
 	int emit(string code);
 	vector<int> makelist(int i);
-	void bsckpatch(const std::vector<int>& address_list, const std::string &loc);
+	void backpatch(const std::vector<int>& address_list, const std::string &loc);
 	vector<int> emitWithPatch(string code);
 	string loadi(int reg, int i);
 	string load(int reg, int offset);
+	vector<int> merge(const vector<int> &l1,const vector<int> &l2);
 	
 %}
 
@@ -1086,7 +1087,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> Exp AND Exp */
 /****************************************************************************/
 		| Exp[left] AND {
-			string beforeRight = codeBuffer.genLabel());			
+			string beforeRight = genLabel();
 		} Exp[right] { 
 			if (($<var>left)->var->getType() != "bool"){
 				// Mismatch of type for operation
@@ -1099,7 +1100,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			($<var>result)->var = new Var("__temp","bool");	
-			codeBuffer.bpatch(($<var>left)->truelist,beforeRight);
+			backpatch(($<var>left)->truelist,beforeRight);
 			($<var>result)->falselist = merge(($<var>left)->falselist,($<var>right)->falselist);
 			($<var>result)->truelist =($<var>right)->truelist;
 
@@ -1161,13 +1162,13 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			regPool->freeReg(($<var>left)->var->getReg());
 			regPool->freeReg(($<var>right)->var->getReg());
 			stringstream code;
-			if ( *($<str>REL) == "<") {
+			if ( *($<str>REL) == string("<") ) {
 				code << "blt";
-			} else if ($<str>REL == "<=") {
+			} else if ( *($<str>REL) == string("<=") ) {
 				code << "ble";			
-			} else if ($<str>REL == ">") {
+			} else if ( *($<str>REL) == string(">") ) {
 				code << "bgt";			
-			} else if ($<str>REL == ">=") {
+			} else if ( *($<str>REL) == string(">=") ) {
 				code << "bge";			
 			}
 			code 
@@ -1211,7 +1212,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			regPool->freeReg(($<var>left)->var->getReg());
 			regPool->freeReg(($<var>right)->var->getReg());
 			stringstream code;
-			if ( *($<str>EQ) == "==") {
+			if ( *($<str>EQ) == string("==") ) {
 				code << "beq";
 			} else {
 				code << "bne";			
@@ -1250,7 +1251,7 @@ void yyerror(char const* s){
 	exit(0);
 }
 
-string genLable() {
+string genLabel() {
 		return codeBuffer.genLabel();
 }
 
@@ -1262,7 +1263,7 @@ vector<int> makelist(int i) {
 	return CodeBuffer::makelist(i);
 }
 
-void bsckpatch(const std::vector<int>& address_list, const std::string &loc) {
+void backpatch(const std::vector<int>& address_list, const std::string &loc) {
 	codeBuffer.bpatch(address_list,loc);
 }
 
@@ -1291,7 +1292,9 @@ string load(int reg, int offset) {
 	return code
 }
 
-
+vector<int> merge(const vector<int> &l1,const vector<int> &l2) {
+	codeBuffer.merge(l1,l2);
+}
 
 
 
