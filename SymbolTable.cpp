@@ -38,7 +38,10 @@ int RegPool::allocateReg() {
 }
 
 void RegPool::freeReg(int reg) {
-	regPool[reg] = false;
+	if ( reg < 8 || reg > 25 ) {
+		throw std::Exception("RegPool::freeReg");
+	}
+	regPool[reg-8] = false;
 }
 	
 /****************************************************************************/

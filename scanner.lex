@@ -56,8 +56,14 @@ continue				return CONTINUE;
 \{						return LBRACE;
 \}						return RBRACE;
 \=						return ASSIGN;
-{equalizer}				return EQ;
-{relation}				return REL;
+{equalizer}				{
+							yylval.str = new string(yytext);
+							return EQ;
+						}
+{relation}				{
+							yylval.str = new string(yytext);
+							return REL;
+						}
 {multiplication}		return MUL;
 {addition}				return ADD;
 [a-zA-Z][a-zA-Z0-9]*	{
