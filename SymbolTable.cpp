@@ -34,12 +34,12 @@ int RegPool::allocateReg() {
 			return i+8;
 		}
 	}		
-	return 0;
+	throw InvalidRegNumberException();
 }
 
 void RegPool::freeReg(int reg) {
 	if ( reg < 8 || reg > 25 ) {
-		throw std::Exception("RegPool::freeReg");
+		throw InvalidRegNumberException();
 	}
 	regPool[reg-8] = false;
 }

@@ -28,6 +28,7 @@ class InvalidInputException : public std::exception {};
 class NoScopesException : public std::exception {};
 class TypeNotInScopeException : public std::exception {};
 class InvalidInitiatorNameException : public std::exception {};
+class InvalidRegNumberException : public std::exception {};
 
 
 

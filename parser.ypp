@@ -1141,6 +1141,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			}
 			($<var>result).var = new Var("__temp","bool");	
 			
+			($<var>result).var
+			
 			
 			// TODO: emit code
 			// result = left OR right
@@ -1172,13 +1174,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			($<var>result).var = new Var("__temp","bool");
 			regPool->freeReg(($<var>left).var->getReg());
 			regPool->freeReg(($<var>right).var->getReg());
-			// TODO: emit code
-			// if left REL right
-			//		result = 1
-			// else
-			// 		result = 0
 			stringstream code;
-			if ( $<str>REL == "<") {
+			if ( *($<str>REL) == "<") {
 				code << "blt";
 			} else if ($<str>REL == "<=") {
 				code << "ble";			
@@ -1196,9 +1193,10 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				<< ",";
 			($<var>left).truelist = emitWithPatch(code.str());
 			($<var>left).falselist = emitWithPatch("goto ");
-
+			
 			($<var>left).var->freeReg();
 			($<var>right).var->freeReg();
+			delete($<str>REL);
 			if (($<var>left).var->getName() == "__temp"){
 				delete ($<var>left).var;
 			}
@@ -1228,7 +1226,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			regPool->freeReg(($<var>left).var->getReg());
 			regPool->freeReg(($<var>right).var->getReg());
 			stringstream code;
-			if ( $<str>EQ == "==") {
+			if ( *($<str>EQ) == "==") {
 				code << "beq";
 			} else {
 				code << "bne";			
@@ -1244,6 +1242,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			($<var>left).falselist = emitWithPatch("goto ");
 			($<var>left).var->freeReg();
 			($<var>right).var->freeReg();
+			delete($<str>EQ);
 			if (($<var>left).var->getName() == "__temp") {
 				delete ($<var>left).var;
 			}
