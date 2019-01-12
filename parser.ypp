@@ -124,9 +124,6 @@ Program : {
 				exit(0);
 			}
 			try {
-				table->printScope();
-				table->printFuncs();
-				table->printStructs();
 				table->removeScope();
 			}
 			catch (RemovedBaseScopeException e) {
@@ -194,8 +191,6 @@ FuncDecl : RetType ID {
 		} Statements { } RBRACE {
 		/********************************************************************/
 			try{
-				table->printScope();
-				table->printStructs();
 				table->removeScope();
 			}
 			catch (NoScopesException e){
@@ -405,8 +400,6 @@ Statement : LBRACE {
 		/********************************************************************/
 		} Statements { } RBRACE {
 		/********************************************************************/
-			table->printScope();
-			table->printStructs();
 			table->removeScope();
 		}
 /****************************************************************************/
@@ -565,6 +558,8 @@ Statement : LBRACE {
 				errorMismatch(yylineno);
 				exit(0);
 			}
+			codeBuffer.bpatch(($<var>right).truelist,genLabel());
+			codeBuffer.bpatch(($<var>right).falselist,genLabel());
 			if (rightName == "__temp"){
 				delete ($<var>right).var;
 			}
@@ -590,8 +585,6 @@ Statement : LBRACE {
 		/********************************************************************/
 		} Statement {
 		/********************************************************************/
-			table->printScope();
-			table->printStructs();
 			table->removeScope();
 		}
 /****************************************************************************/
@@ -613,8 +606,6 @@ Statement : LBRACE {
 		/********************************************************************/
 		} Statement {
 		/********************************************************************/
-			table->printScope();
-			table->printStructs();
 			table->removeScope();
 			// TODO: emit code
 			// Bpatch
@@ -671,8 +662,6 @@ If 		: IF LPAREN Exp {
 		/********************************************************************/
 		} Statement {
 		/********************************************************************/
-			table->printScope();
-			table->printStructs();
 			table->removeScope();
 		}
 /****************************************************************************/
@@ -1017,8 +1006,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 		| NUM {
 			($<var>result).var = new Var("__temp","int");
 			($<var>result).var->allocReg(regPool->allocateReg());
-			// TODO: emit code
-			// result = NUM
+			emit(loadi(($<var>result).var->getReg(),$<num>NUM));
 		}
 /****************************************************************************/
 
@@ -1035,8 +1023,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			}
 			($<var>result).var = new Var("__temp","byte");
 			($<var>result).var->allocReg(regPool->allocateReg());
-			// TODO: emit code
-			// result = NUM
+			emit(loadi(($<var>result).var->getReg(),$<num>NUM));
 		}
 /****************************************************************************/
 
@@ -1054,9 +1041,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /****************************************************************************/
 		| TRUE {
 			($<var>result).var = new Var("__temp","bool");
-			($<var>result).var->allocReg(regPool->allocateReg());
-			// TODO: emit code
-			// result = 1
+			($<var>result).truelist = emitWithPatch("goto ");
 		}
 /****************************************************************************/
 
@@ -1065,10 +1050,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /****************************************************************************/
 		| FALSE {
 			($<var>result).var = new Var("__temp","bool");
-			($<var>result).var->allocReg(regPool->allocateReg());
-			// TODO: emit code
-			// result = 0
-		}
+			($<var>result).falselist = emitWithPatch("goto ");
+			}
 /****************************************************************************/
 
 
@@ -1083,11 +1066,9 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			($<var>result).var = new Var("__temp","bool");
-			($<var>result).var->allocReg(regPool->allocateReg());
-			regPool->freeReg(($<var>left).var->getReg());
-			// TODO: emit code
-			// result = 1 - left
-			($<var>left).var->freeReg();
+			($<var>result).truelist = ($<var>left).falselist;
+			($<var>result).falselist = ($<var>left).truelist;
+			
 			if (leftName == "__temp"){
 				delete ($<var>left).var;
 			}
@@ -1097,7 +1078,9 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 
 /* Exp -> Exp AND Exp */
 /****************************************************************************/
-		| Exp[left] AND Exp[right] { 
+		| Exp[left] AND {
+			string beforeRight = codeBuffer.genLabel());			
+		} Exp[right] { 
 			if (($<var>left).var->getType() != "bool"){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
@@ -1109,13 +1092,10 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			($<var>result).var = new Var("__temp","bool");	
-			($<var>result).var->allocReg(regPool->allocateReg());
-			regPool->freeReg(($<var>left).var->getReg());
-			regPool->freeReg(($<var>right).var->getReg());
-			// TODO: emit code
-			// result = left AND right
-			($<var>left).var->freeReg();
-			($<var>right).var->freeReg();
+			codeBuffer.bpatch(($<var>left).truelist,beforeRight);
+			($<var>result).falselist = merge(($<var>left).falselist,($<var>right).falselist);
+			($<var>result).truelist =($<var>right).truelist;
+
 			if (($<var>left).var->getName() == "__temp"){
 				delete ($<var>left).var;
 			}
@@ -1128,7 +1108,9 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 
 /* Exp -> Exp OR Exp */
 /****************************************************************************/
-		| Exp[left] OR Exp[right] {
+		| Exp[left] OR {
+			string beforeRight = codeBuffer.genLabel());
+		} Exp[right] {
 			if (($<var>left).var->getType() != "bool"){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
@@ -1140,12 +1122,9 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			($<var>result).var = new Var("__temp","bool");	
-			
-			($<var>result).var
-			
-			
-			// TODO: emit code
-			// result = left OR right
+			codeBuffer.bpatch(($<var>left).falselist,beforeRight);
+			($<var>result).truelist = merge(($<var>left).truelist,($<var>right).truelist);
+			($<var>result).falselist =($<var>right).falselist;
 			if (($<var>left).var->getName() == "__temp"){
 				delete ($<var>left).var;
 			}
@@ -1231,11 +1210,10 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			} else {
 				code << "bne";			
 			}
-			code 
-				<< branchOption
-				<< " $" 
-				<< ($<var>left).var->getReg() 
-				<< ",$" 
+			code
+				<< " $"
+				<< ($<var>left).var->getReg()
+				<< ",$"
 				<< ($<var>right).var->getReg()
 				<< ",";
 			($<var>left).truelist = emitWithPatch(code.str());
@@ -1257,6 +1235,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 
 int main() {
 	yyparse();
+	codeBuffer.printCodeBuffer();
 	return 0;
 }
 
@@ -1265,22 +1244,47 @@ void yyerror(char const* s){
 	exit(0);
 }
 
+string genLable() {
+		return codeBuffer.genLabel();
+}
+
 int emit(string code) {
 	return codeBuffer.emit(code);
 }
 
-int emitLoadReg(int reg) {
+vector<int> makelist(int i) {
+	return CodeBuffer::makelist(i);
+}
+
+void bsckpatch(const std::vector<int>& address_list, const std::string &loc) {
+	codeBuffer.bpatch(address_list,loc);
+}
+
+vector<int> emitWithPatch(string code) {
+	return makelist(emit(code));
+}
+
+string loadi(int reg, int i) {
+	stringstream code;
+	code 
+		<< "li $"
+		<< reg
+		<< ","
+		<< i;
+	return code
+}
+
+string load(int reg, int offset) {
 	stringstream code;
 	code 
 		<< "lw $"
 		<< reg
 		<< ","
-	return codeBuffer.emit(code);
+		<< offset
+		<< "($fp)";
+	return code
 }
 
-vector<int> emitWithPatch(string code) {
-	return CodeBuffer::makelist(codeBuffer.emit(code));
-}
 
 
 
