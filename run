@@ -1,15 +1,16 @@
 #!/bin/bash
+
 testFile=test
+
 if (( $# > 0 )) 
 then
-	testFile=$1
+	file=$1
 fi
 rm -rf *.out
 rm -rf *.in
-rm -rf 
 
-flex scanner.lex
-bison -d parser.ypp
-g++ parser.tab.cpp SymbolTable.cpp bp.cpp output.cpp lex.yy.c
+make
 
-./a.out < $testFile
+./hw5 < $testFile
+
+
