@@ -968,26 +968,32 @@ return ASSIGN;
 case 26:
 YY_RULE_SETUP
 #line 59 "scanner.lex"
-return EQ;
+{
+							yylval.str = new string(yytext);
+							return EQ;
+						}
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 60 "scanner.lex"
-return REL;
+#line 63 "scanner.lex"
+{
+							yylval.str = new string(yytext);
+							return REL;
+						}
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 61 "scanner.lex"
+#line 67 "scanner.lex"
 return MUL;
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 62 "scanner.lex"
+#line 68 "scanner.lex"
 return ADD;
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 63 "scanner.lex"
+#line 69 "scanner.lex"
 {
 							yylval.str = new string(yytext);  
 							return ID;
@@ -995,7 +1001,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 67 "scanner.lex"
+#line 73 "scanner.lex"
 {
 							char* endptr;
 							yylval.num = (int)(strtol(yytext,&endptr,10));
@@ -1004,7 +1010,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 72 "scanner.lex"
+#line 78 "scanner.lex"
 {
 							yylval.str = new string(yytext);  
 							return STRING;
@@ -1013,27 +1019,27 @@ YY_RULE_SETUP
 case 33:
 /* rule 33 can match eol */
 YY_RULE_SETUP
-#line 76 "scanner.lex"
+#line 82 "scanner.lex"
 ;
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 77 "scanner.lex"
+#line 83 "scanner.lex"
 ;
 	YY_BREAK
 case 35:
 /* rule 35 can match eol */
 YY_RULE_SETUP
-#line 78 "scanner.lex"
+#line 84 "scanner.lex"
 ;
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
-#line 79 "scanner.lex"
+#line 85 "scanner.lex"
 return EF;
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 80 "scanner.lex"
+#line 86 "scanner.lex"
 {
 							output::errorLex(yylineno); 
 							exit(1);
@@ -1041,10 +1047,10 @@ YY_RULE_SETUP
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 84 "scanner.lex"
+#line 90 "scanner.lex"
 ECHO;
 	YY_BREAK
-#line 1048 "lex.yy.c"
+#line 1054 "lex.yy.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2059,6 +2065,6 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 84 "scanner.lex"
+#line 90 "scanner.lex"
 
 

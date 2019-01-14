@@ -1,3 +1,7 @@
+bool notmain() {
+	return not ((true or true) and  (not false));
+}
+
 void main() {
-	return 1+1;
+	return;
 }
