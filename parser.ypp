@@ -893,9 +893,34 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			regPool->freeReg($<var>left->getReg());
 			regPool->freeReg($<var>right->getReg());
 			($<var>result)->allocReg(regPool->allocateReg());
-			// TODO: emit code
+			stringstream code;
+			if ( *($<str>MUL) == string("*") ) {
+				if ( $<var>result->getType() == "int" ) {
+					code << "mul "; 
+				}
+				else {
+					code << "mulo ";
+				}
+			}
+			else { 
+				if ( $<var>result->getType() == "int" ) {
+					code << "div "; 
+				}
+				else {
+					code << "divu ";
+				}
+			}
+			code 
+				<< "$" 
+				<< $<var>result->getReg()
+				<< ", $" 
+				<< $<var>left->getReg()
+				<< ", $" 
+				<< $<var>right->getReg();
+			emit(code.str());
 			$<var>left->freeReg();
 			$<var>right->freeReg();
+			delete ($<str>MUL);
 			if ($<var>left->getName() == "__temp"){
 				delete ($<var>left);
 			}
@@ -973,15 +998,16 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /****************************************************************************/
 		| ID {
 			try {
-				($<var>result) = const_cast<Var*>(&(table->findVar(*($<str>ID))));
+				$<var>result = const_cast<Var*>(&(table->findVar(*($<str>ID))));
 			}
 			catch (VariableNotFoundException e){
 				// Using undefined variable
 				errorUndef(yylineno,*($<str>ID));
 				exit(0);
 			}
-			($<var>result)->allocReg(regPool->allocateReg());
-			// TODO: emit code
+			$<var>result->allocReg(regPool->allocateReg());
+			emit(load($<var>result->getReg(), $<var>result->getPlace()));
+			delete ($<str>ID);
 		}
 /****************************************************************************/
 
@@ -1008,20 +1034,24 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 		/********************************************************************/
 		} PERIOD ID[right] {
 		/********************************************************************/
+			const Var* var;
 			const StructNode* strct;
 			try{
-				const string& structName =
-					table->findVar(*($<str>left)).getType();
-				strct = &(table->findStruct(structName));
-				($<var>result) = new Var("__temp",strct->find(*($<str>right)).getType());
+				var = &(table->findVar(*($<str>left))); 
+				strct = &(table->findStruct(var->getType()));
+				$<var>result = const_cast<Var*>(&(strct->find(*($<str>right))));
 			}
 			catch (VariableNotFoundException e){
 				// Using undefined struct member
 				errorUndefStructMember(yylineno,*($<str>left));
 				exit(0);
 			}
-			($<var>result)->allocReg(regPool->allocateReg());
-			// TODO: emit code
+			$<var>result->allocReg(regPool->allocateReg());
+			emit(load(
+				$<var>result->getReg(), 
+				var->getPlace() + $<var>result->getPlace()));
+			delete ($<str>left);
+			delete ($<str>right);
 		}
 /****************************************************************************/
 
