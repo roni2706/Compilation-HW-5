@@ -536,7 +536,7 @@ Statement : LBRACE {
 /* Statement -> Call SC */
 /****************************************************************************/
 		| Call SC {
-			delete ($<var>Call);	
+			delete ($<var>Call);
 		}
 /****************************************************************************/
 
@@ -1059,10 +1059,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> Call */
 /****************************************************************************/
 		| Call {
-			($<var>result) = ($<var>Call);
-			($<var>result)->allocReg(regPool->allocateReg());
-			// TODO: emit code
-			// result = Call
+			$<var>result = $<var>Call;
+			// #NoEmit
 		}
 /****************************************************************************/
 
