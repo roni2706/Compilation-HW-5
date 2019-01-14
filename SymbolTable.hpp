@@ -41,9 +41,11 @@ public:
 	~RegPool();
 	int allocateReg();
 	void freeReg(int reg);
+	void reallocPool();
+	void deallocPool();
 	
 private:
-	bool regPool[N];
+	vector<bool*>* regPool;
 };
 
 /****************************************************************************/

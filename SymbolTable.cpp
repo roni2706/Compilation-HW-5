@@ -19,18 +19,24 @@ using std::endl;
 /*                              CLASS REG POOL                              */
 /****************************************************************************/
 
-RegPool::RegPool() {
-	for( int i = 0 ; i < N ; i++ ) {
-		regPool[i] = false;
-	}
+RegPool::RegPool() : regPool(new vector<bool*>) {
+	reallocPool();
 }
 
-RegPool::~RegPool() {}
+RegPool::~RegPool() {
+	while ( !regPool->empty() ) {
+		delete(regPool->back());
+	}
+	delete(regPool);
+}
 
 int RegPool::allocateReg() {
+	cout << "RegPool::allocateReg()" << endl;
+	bool* currentRegPool = (regPool->back()); 
 	for( int i = 0 ; i < N ; i++ ) {
-		if ( !regPool[i] ) {
-			regPool[i] = true;
+		cout << "i: " << i << endl;
+		if ( !currentRegPool[i] ) {
+			currentRegPool[i] = true;
 			return i+8;
 		}
 	}		
@@ -41,8 +47,23 @@ void RegPool::freeReg(int reg) {
 	if ( reg < 8 || reg > 25 ) {
 		throw InvalidRegNumberException();
 	}
-	regPool[reg-8] = false;
+	bool* currentRegPool = (regPool->back()); 
+	(currentRegPool)[reg-8] = false;
 }
+
+void RegPool::reallocPool() {
+	regPool->push_back(new bool[N]);
+	for( int i = 0 ; i < N ; i++ ) {
+		(regPool->back())[i] = false;
+	}	
+}
+
+void RegPool::deallocPool() {
+	delete(regPool->back());
+	regPool->pop_back();
+}
+
+
 	
 /****************************************************************************/
 /*                                CLASS VAR                                 */
