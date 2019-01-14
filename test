@@ -1,7 +1,0 @@
-bool notmain() {
-	return true or false;
-}
-
-void main() {
-	return;
-}
