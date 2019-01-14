@@ -20,6 +20,9 @@
 	RegPool* regPool;
 	CodeBuffer &codeBuffer = CodeBuffer::instance();
 
+	#define VAR (x) ($<var>(x))
+	#define STR (x) ($<str>(x))
+
 	string genLabel();
 	int emit(string code);
 	vector<int> makelist(int i);
@@ -1160,48 +1163,48 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> Exp REL Exp */
 /****************************************************************************/
 		| Exp[left] REL Exp[right] {
-			if ((($<var>left)->getType() != "int")&&
-				(($<var>left)->getType() != "byte")){
+			if ((VAR(left)->getType() != "int")&&
+				(VAR(left)->getType() != "byte")){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);
 			}
-			if ((($<var>right)->getType() != "int")&&
-				(($<var>right)->getType() != "byte")){
+			if ((VAR(right)->getType() != "int")&&
+				(VAR(right)->getType() != "byte")){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);
 			}
-			($<var>result) = new Var("__temp","bool");
-			regPool->freeReg(($<var>left)->getReg());
-			regPool->freeReg(($<var>right)->getReg());
+			VAR(result) = new Var("__temp","bool");
+			regPool->freeReg(VAR(left))->getReg());
+			regPool->freeReg(VAR(right))->getReg());
 			stringstream code;
-			if ( *($<str>REL) == string("<") ) {
+			if ( *(STR(REL)) == string("<") ) {
 				code << "blt";
-			} else if ( *($<str>REL) == string("<=") ) {
+			} else if ( *(STR(REL)) == string("<=") ) {
 				code << "ble";			
-			} else if ( *($<str>REL) == string(">") ) {
+			} else if ( *(STR(REL)) == string(">") ) {
 				code << "bgt";			
-			} else if ( *($<str>REL) == string(">=") ) {
+			} else if ( *(STR(REL)) == string(">=") ) {
 				code << "bge";			
 			}
-			code 
+			code
 				<< " $" 
-				<< ($<var>left)->getReg() 
+				<< VAR(left)->getReg()	
 				<< ", $" 
-				<< ($<var>right)->getReg()
+				<< VAR(right)->getReg()
 				<< ",";
-			($<var>left)->truelist = emitWithPatch(code.str());
-			($<var>left)->falselist = emitWithPatch("goto ");
-			
-			($<var>left)->freeReg();
-			($<var>right)->freeReg();
-			delete($<str>REL);
-			if (($<var>left)->getName() == "__temp"){
-				delete ($<var>left);
+
+			VAR(result)->truelist = emitWithPatch(code.str());
+			VAR(result)->falselist = emitWithPatch("goto ");
+			VAR(left)->freeReg();
+			VAR(right)->freeReg();
+			delete (STR(REL));
+			if (VAR(left)->getName() == "__temp") {
+				delete (VAR(left));
 			}
-			if (($<var>right)->getName() == "__temp"){
-				delete ($<var>right);
+			if (VAR(right)->getName() == "__temp") {
+				delete (VAR(right));
 			}
 		}
 /****************************************************************************/
@@ -1210,43 +1213,34 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> Exp EQ Exp */
 /****************************************************************************/
 		| Exp[left] EQ Exp[right] {
-			if ((($<var>left)->getType() != "int")&&
-				(($<var>left)->getType() != "byte")){
+			if ((VAR(left)->getType() != "int")&&
+				(VAR(left)->getType() != "byte")){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);
 			}
-			if ((($<var>right)->getType() != "int")&&
-				(($<var>right)->getType() != "byte")){
+			if ((VAR(right)->getType() != "int")&&
+				((VAR(right)->getType() != "byte")){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);
 			}
-			($<var>result) = new Var("__temp","bool");
-			regPool->freeReg(($<var>left)->getReg());
-			regPool->freeReg(($<var>right)->getReg());
+			VAR(result) = new Var("__temp","bool");
+			regPool->freeReg(VAR(left)->getReg());
+			regPool->freeReg(VAR(right)->getReg());
 			stringstream code;
-			if ( *($<str>EQ) == string("==") ) {
-				code << "beq";
-			} else {
-				code << "bne";			
+			code << (STR(EQ) == "==") ? "beq" : "bne";
+			code << " $" << VAR(left)->getReg()	<< ", $" << VAR(right)->getReg() << ",";
+			VAR(result)->truelist = emitWithPatch(code.str());
+			VAR(result)->falselist = emitWithPatch("goto ");
+			VAR(left)->freeReg();
+			VAR(right)->freeReg();
+			delete (STR(EQ));
+			if (VAR(left)->getName() == "__temp") {
+				delete (VAR(left));
 			}
-			code
-				<< " $"
-				<< ($<var>left)->getReg()
-				<< ", $"
-				<< ($<var>right)->getReg()
-				<< ",";
-			($<var>left)->truelist = emitWithPatch(code.str());
-			($<var>left)->falselist = emitWithPatch("goto ");
-			($<var>left)->freeReg();
-			($<var>right)->freeReg();
-			delete($<str>EQ);
-			if (($<var>left)->getName() == "__temp") {
-				delete ($<var>left);
-			}
-			if (($<var>right)->getName() == "__temp") {
-				delete ($<var>right);
+			if (VAR(right)->getName() == "__temp") {
+				delete (VAR(right));
 			}
 		}
 /****************************************************************************/
