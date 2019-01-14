@@ -122,7 +122,12 @@ void StructMembers::addMember(const Var& var) {
 	if (!isTypeExists(var.getType())) {
 		throw InvalidTypeNameException();
 	}
-	_members->push_back(new Var(var));
+	
+	_members->push_back(new Var(
+		var.getName(),
+		var.getType(),
+		memSize(),
+		var.getSize()));
 	_membersNames->push_back(var.getName());
 	_membersTypes->push_back(var.getType());
 }
