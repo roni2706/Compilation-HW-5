@@ -64,8 +64,14 @@ continue				return CONTINUE;
 							yylval.str = new string(yytext);
 							return REL;
 						}
-{multiplication}		return MUL;
-{addition}				return ADD;
+{multiplication}		{
+							yylval.str = new string(yytext);  
+							return MUL;
+						}
+{addition}				{
+							yylval.str = new string(yytext);  
+							return ADD;
+						}
 [a-zA-Z][a-zA-Z0-9]*	{
 							yylval.str = new string(yytext);  
 							return ID;
