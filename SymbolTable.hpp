@@ -125,6 +125,7 @@ public:
 	const Var& find(const string& name) const;
 	int size() const;
 	int memSize() const;
+	const Var& operator[](int i) const;
 private:
 	string _name;
 	StructMembers* _structMems;

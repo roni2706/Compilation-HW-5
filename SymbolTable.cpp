@@ -227,6 +227,11 @@ int StructNode::memSize() const {
 	return _structMems->memSize();
 }
 
+const Var& StructNode::operator[](int i) const {
+	return (*_structMems)[i];
+}
+
+
 /****************************************************************************/
 /*                             CLASS FUNC_PARAMS                            */
 /****************************************************************************/
@@ -1089,13 +1094,13 @@ int SymbolTable::scopesSize() const {
 
 int SymbolTable::typeSize(const string& type) const {
 	if (type == "int") {
-		return 1;
+		return 4;
 	}
 	if (type == "byte") {
-		return 1;
+		return 4;
 	}
 	if (type == "bool") {
-		return 1;
+		return 4;
 	}
 	return findStruct(type).memSize();
 }
