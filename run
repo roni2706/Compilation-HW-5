@@ -4,7 +4,7 @@ testFile=test
 
 if (( $# > 0 )) 
 then
-	file=$1
+	testFile=$1
 fi
 rm -rf *.out
 rm -rf *.in
@@ -13,5 +13,9 @@ make
 echo "*************************"
 
 ./hw5 < $testFile
+
+
+
+
 
 

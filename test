@@ -1,7 +1,0 @@
-bool notmain() {
-	return (5+3 == 8) or false;
-}
-
-void main() {
-	return;
-}
