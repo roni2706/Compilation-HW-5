@@ -1,0 +1,16 @@
+#!/bin/bash
+
+testFile=test
+
+if (( $# > 0 )) 
+then
+	file=$1
+fi
+rm -rf *.out
+rm -rf *.in
+
+make
+
+./hw5 < $testFile
+
+

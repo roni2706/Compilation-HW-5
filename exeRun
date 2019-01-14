@@ -1,0 +1,13 @@
+#!/bin/bash
+
+chmod a+x run
+dos2unix run
+
+if (( $# > 0 )) 
+then
+	./run $1
+else
+	./run
+fi
+
+
