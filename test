@@ -1,5 +1,5 @@
 bool notmain() {
-	return not ((true or true) and  (not false));
+	return true or false;
 }
 
 void main() {
