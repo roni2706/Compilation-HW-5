@@ -276,13 +276,13 @@ Formals : FormalsList {
 FormalsList[result] : FormalDecl {
 			try{
 				FuncParams* params = new FuncParams();
-				params->addParam(*($<var>FormalDecl->var));
+				params->addParam(*($<var>FormalDecl));
 				$<funcParams>result = params;
-				delete ($<var>FormalDecl->var);
+				delete ($<var>FormalDecl);
 			}
 			catch (NameAlreadyExistsException e){
 				// Redeclaration of function parameter
-				errorDef(yylineno,($<var>FormalDecl->var)->getName());
+				errorDef(yylineno,($<var>FormalDecl)->getName());
 				exit(0);
 			}
 			
@@ -294,13 +294,13 @@ FormalsList[result] : FormalDecl {
 /****************************************************************************/
 		| FormalsList[right] COMMA FormalDecl {
 			try {
-				($<funcParams>right)->addParam(*($<var>FormalDecl->var));
+				($<funcParams>right)->addParam(*($<var>FormalDecl));
 				$<funcParams>result = $<funcParams>right;
-				delete ($<var>FormalDecl->var);
+				delete ($<var>FormalDecl);
 			}
 			catch (NameAlreadyExistsException e){
 				// Redeclaration of function parameter
-				errorDef(yylineno,($<var>FormalDecl->var)->getName());
+				errorDef(yylineno,($<var>FormalDecl)->getName());
 				exit(0);
 			}		
 		}
@@ -341,13 +341,13 @@ FormalDecl : Type ID {
 StructMemList[result] : StructMem {
 			try {
 				StructMembers* members = new StructMembers();
-				members->addMember(*($<var>StructMem->var));
+				members->addMember(*($<var>StructMem));
 				$<structMembers>result = members;
-				delete ($<var>StructMem->var);
+				delete ($<var>StructMem);
 			}
 			catch (NameAlreadyExistsException e){
 				// Redeclaration of struct members
-				errorDef(yylineno,($<var>StructMem->var)->getName());
+				errorDef(yylineno,($<var>StructMem)->getName());
 				exit(0);
 			}
 		}
@@ -358,13 +358,13 @@ StructMemList[result] : StructMem {
 /****************************************************************************/
 		| StructMemList[right] StructMem  {
 			try {
-				($<structMembers>right)->addMember(*($<var>StructMem->var));
+				($<structMembers>right)->addMember(*($<var>StructMem));
 				$<structMembers>result = $<structMembers>right;
-				delete ($<var>StructMem->var);
+				delete ($<var>StructMem);
 			}
 			catch (NameAlreadyExistsException e){
 				// Redeclaration of struct members
-				errorDef(yylineno,($<var>StructMem->var)->getName());
+				errorDef(yylineno,($<var>StructMem)->getName());
 				exit(0);
 			}
 		}
@@ -566,8 +566,11 @@ Statement : LBRACE {
 				errorMismatch(yylineno);
 				exit(0);
 			}
-			codeBuffer.bpatch(($<var>right)->truelist,genLabel());
-			codeBuffer.bpatch(($<var>right)->falselist,genLabel());
+			if (rightType == "bool") {
+				backpatch($<var>right->truelist,genLabel());
+				backpatch($<var>right->falselist,genLabel());
+			}
+			// TODO: emit 
 			if (rightName == "__temp"){
 				delete ($<var>right);
 			}
@@ -756,7 +759,7 @@ CallParams : ExpList {
 /****************************************************************************/
 ExpList[result] : Exp {
 			FuncParams* parameters = new FuncParams();
-			parameters->addParam(*($<var>Exp->var));
+			parameters->addParam(*($<var>Exp));
 			$<funcParams>result = parameters;
 			if (($<var>Exp)->getName() == "__temp"){
 				delete ($<var>Exp);
@@ -769,10 +772,10 @@ ExpList[result] : Exp {
 /* ExpList -> ExpList COMMA Exp */
 /****************************************************************************/
 		| ExpList[right] COMMA Exp {
-			($<funcParams>right)->addParam(*($<var>Exp->var));
+			($<funcParams>right)->addParam(*($<var>Exp));
 			$<funcParams>result = $<funcParams>right;
 			if (($<var>Exp)->getName() == "__temp"){
-				delete ($<var>Exp->var);
+				delete ($<var>Exp);
 			}
 			// #NoEmit
 		}
@@ -887,9 +890,9 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			else {
 				($<var>result) = new Var("__temp","byte");
 			}
-			($<var>result)->allocReg(regPool->allocateReg());
 			regPool->freeReg(($<var>left)->getReg());
 			regPool->freeReg(($<var>right)->getReg());
+			($<var>result)->allocReg(regPool->allocateReg());
 			// TODO: emit code
 			($<var>left)->freeReg();
 			($<var>right)->freeReg();
@@ -908,6 +911,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 		| Exp[left] ADD Exp[right] {
 			if ((($<var>left)->getType() != "int") && 
 				(($<var>left)->getType() != "byte")){
+					cout << ($<var>left)->getType() << endl;
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);	
@@ -925,9 +929,9 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			else {
 				($<var>result) = new Var("__temp","byte");
 			}
-			($<var>result)->allocReg(regPool->allocateReg());
 			regPool->freeReg(($<var>left)->getReg());
 			regPool->freeReg(($<var>right)->getReg());
+			($<var>result)->allocReg(regPool->allocateReg());
 			// TODO: emit code
 			stringstream code;
 			code 
@@ -1096,7 +1100,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> Exp AND Exp */
 /****************************************************************************/
 		| Exp[left] AND {
-			$<var>$->quad = genLabel();
+			$<str>$ = new string(genLabel());
 		} Exp[right] { 
 			if (($<var>left)->getType() != "bool"){
 				// Mismatch of type for operation
@@ -1109,10 +1113,10 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			($<var>result) = new Var("__temp","bool");	
-			backpatch(($<var>left)->truelist,($<var>3)->quad);
+			backpatch(($<var>left)->truelist,*($<str>3));
 			($<var>result)->falselist = merge(($<var>left)->falselist,($<var>right)->falselist);
 			($<var>result)->truelist =($<var>right)->truelist;
-
+			delete ($<str>3);
 			if (($<var>left)->getName() == "__temp"){
 				delete ($<var>left);
 			}
@@ -1125,8 +1129,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 
 /* Exp -> Exp OR Exp */
 /****************************************************************************/
-		| Exp[left] OR{
-			$<var>$->quad = genLabel();
+		| Exp[left] OR {
+			$<str>$ = new string(genLabel());
 		} Exp[right] {
 			if (($<var>left)->getType() != "bool"){
 				// Mismatch of type for operation
@@ -1139,9 +1143,10 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			($<var>result) = new Var("__temp","bool");	
-			codeBuffer.bpatch(($<var>left)->falselist,($<var>3)->quad);
+			backpatch(($<var>left)->falselist,*($<str>3));
 			($<var>result)->truelist = merge(($<var>left)->truelist,($<var>right)->truelist);
 			($<var>result)->falselist =($<var>right)->falselist;
+			delete ($<str>3);
 			if (($<var>left)->getName() == "__temp"){
 				delete ($<var>left);
 			}
@@ -1183,7 +1188,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			code 
 				<< " $" 
 				<< ($<var>left)->getReg() 
-				<< ",$" 
+				<< ", $" 
 				<< ($<var>right)->getReg()
 				<< ",";
 			($<var>left)->truelist = emitWithPatch(code.str());
@@ -1229,7 +1234,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			code
 				<< " $"
 				<< ($<var>left)->getReg()
-				<< ",$"
+				<< ", $"
 				<< ($<var>right)->getReg()
 				<< ",";
 			($<var>left)->truelist = emitWithPatch(code.str());
@@ -1285,7 +1290,7 @@ string loadi(int reg, int i) {
 	code 
 		<< "li $"
 		<< reg
-		<< ","
+		<< ", "
 		<< i;
 	return code.str();
 }
@@ -1295,14 +1300,14 @@ string load(int reg, int offset) {
 	code 
 		<< "lw $"
 		<< reg
-		<< ","
+		<< ", "
 		<< offset
 		<< "($fp)";
 	return code.str();
 }
 
 vector<int> merge(const vector<int> &l1,const vector<int> &l2) {
-	codeBuffer.merge(l1,l2);
+	return codeBuffer.merge(l1,l2);
 }
 
 
