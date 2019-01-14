@@ -909,45 +909,60 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> Exp ADD Exp */
 /****************************************************************************/
 		| Exp[left] ADD Exp[right] {
-			if ((($<var>left)->getType() != "int") && 
-				(($<var>left)->getType() != "byte")){
-					cout << ($<var>left)->getType() << endl;
+			if (($<var>left->getType() != "int") && 
+				($<var>left->getType() != "byte")){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);	
 			}
-			if ((($<var>right)->getType() != "int") && 
-				(($<var>right)->getType() != "byte")){
+			if (($<var>right->getType() != "int") && 
+				($<var>right->getType() != "byte")){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);	
 			}
-			if ((($<var>left)->getType() == "int") || 
-				(($<var>right)->getType() == "int")){
-				($<var>result) = new Var("__temp","int");
+			if (($<var>left->getType() == "int") || 
+				($<var>right->getType() == "int")){
+				$<var>result = new Var("__temp","int");
 			}
 			else {
-				($<var>result) = new Var("__temp","byte");
+				$<var>result = new Var("__temp","byte");
 			}
-			regPool->freeReg(($<var>left)->getReg());
-			regPool->freeReg(($<var>right)->getReg());
-			($<var>result)->allocReg(regPool->allocateReg());
-			// TODO: emit code
+			regPool->freeReg($<var>left->getReg());
+			regPool->freeReg($<var>right->getReg());
+			$<var>result->allocReg(regPool->allocateReg());
 			stringstream code;
+			if ( *($<str>ADD) == string("+") ) {
+				if ( $<var>result->getType() == "int" ) {
+					code << "add "; 
+				}
+				else {
+					code << "addu ";
+				}
+			}
+			else { 
+				if ( $<var>result->getType() == "int" ) {
+					code << "sub "; 
+				}
+				else {
+					code << "subu ";
+				}
+			}
 			code 
-				<< "addu $" 
+				<< "$" 
 				<< ($<var>result)->getReg()
 				<< ", $" 
 				<< ($<var>left)->getReg()
 				<< ", $" 
 				<< ($<var>right)->getReg();
 			emit(code.str());
-			($<var>left)->freeReg();
-			($<var>right)->freeReg();
-			if (($<var>left)->getName() == "__temp"){
+			$<var>left->freeReg();
+			$<var>right->freeReg();
+			delete ($<str>ADD);
+			if ($<var>left->getName() == "__temp"){
 				delete ($<var>left);
 			}
-			if (($<var>right)->getName() == "__temp"){
+			if ($<var>right->getName() == "__temp"){
 				delete ($<var>right);
 			}
 		}
@@ -1025,9 +1040,9 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> NUM */
 /****************************************************************************/
 		| NUM {
-			($<var>result) = new Var("__temp","int");
-			($<var>result)->allocReg(regPool->allocateReg());
-			emit(loadi(($<var>result)->getReg(),$<num>NUM));
+			$<var>result = new Var("__temp","int");
+			$<var>result->allocReg(regPool->allocateReg());
+			emit(loadi($<var>result->getReg(),$<num>NUM));
 		}
 /****************************************************************************/
 
@@ -1089,7 +1104,6 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			$<var>result = new Var("__temp","bool");
 			$<var>result->truelist = $<var>left->falselist;
 			$<var>result->falselist = $<var>left->truelist;
-			
 			if (leftName == "__temp"){
 				delete ($<var>left);
 			}
@@ -1196,7 +1210,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				<< $<var>left->getReg()	
 				<< ", $" 
 				<< $<var>right->getReg()
-				<< ",";
+				<< ", ";
 
 			$<var>result->truelist = emitWithPatch(code.str());
 			$<var>result->falselist = emitWithPatch("goto ");
@@ -1232,13 +1246,18 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			regPool->freeReg($<var>left->getReg());
 			regPool->freeReg($<var>right->getReg());
 			stringstream code;
-			code << (*($<str>EQ) == "==") ? "beq" : "bne";
+			if (*($<str>EQ) == "==") {
+				code << "beq";
+			}
+			else {
+				code << "bne";
+			}
 			code 
 				<< " $" 
 				<< $<var>left->getReg()	
 				<< ", $" 
 				<< $<var>right->getReg() 
-				<< ",";
+				<< ", ";
 			$<var>result->truelist = emitWithPatch(code.str());
 			$<var>result->falselist = emitWithPatch("goto ");
 			$<var>left->freeReg();

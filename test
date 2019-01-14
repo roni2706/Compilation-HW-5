@@ -1,5 +1,5 @@
 bool notmain() {
-	return true or false;
+	return (5+3 == 8) or false;
 }
 
 void main() {
