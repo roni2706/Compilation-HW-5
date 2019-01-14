@@ -10,6 +10,7 @@ rm -rf *.out
 rm -rf *.in
 
 make
+echo "*************************"
 
 ./hw5 < $testFile
 
