@@ -28,6 +28,9 @@
 	string loadi(int reg, int i);
 	string load(int reg, int offset);
 	vector<int> merge(const vector<int> &l1,const vector<int> &l2);
+	string store(int reg, int offset);
+	void pop(int reg);
+	void push(int reg);
 	
 %}
 
@@ -761,10 +764,43 @@ ExpList[result] : Exp {
 			FuncParams* parameters = new FuncParams();
 			parameters->addParam(*($<var>Exp));
 			$<funcParams>result = parameters;
+
+			try {
+				const StructNode& structNode = table.findStruct($<var>Exp->getType());				
+				for ( int i = 0 ; i < structNode.size() ; i++ ) {
+					$<var>Exp->allocReg(regPool->allocateReg());
+					emit(load($<var>Exp->getReg(), 
+						$<var>Exp->getPlace() + structNode[i].getPlace() ));
+					push($<var>Exp->getReg());
+					regPool->freeReg($<var>Exp->getReg());
+					$<var>Exp->freeReg();
+				}
+			}
+			catch (StructNotFoundException e){
+				if ( $<var>Exp->getType() == "bool") {
+					$<var>Exp->allocReg(regPool->allocateReg());
+					string falseLabel = genLabel();
+					string trueLabel = genLabel();
+					string nextLabel = genLabel();
+
+					emit(falseLabel);
+					emit(loadi($<var>Exp->getReg(),0));
+					vector<int> tempVector = makelist(emit("goto "));
+					emit(trueLabel);
+					emit(loadi($<var>Exp->getReg(),1));
+					emit(nextLabel);
+
+					backpatch($<var>Exp->falselist, falseLabel);
+					backpatch($<var>Exp->truelist, trueLabel);
+					backpatch(tempVector, nextLabel);
+				}
+				push($<var>Exp->getReg());
+				regPool->freeReg($<var>Exp->getReg());
+				$<var>Exp->freeReg();
+			}
 			if (($<var>Exp)->getName() == "__temp"){
 				delete ($<var>Exp);
 			}
-			// #NoEmit
 		}
 /****************************************************************************/
 
@@ -774,10 +810,44 @@ ExpList[result] : Exp {
 		| ExpList[right] COMMA Exp {
 			($<funcParams>right)->addParam(*($<var>Exp));
 			$<funcParams>result = $<funcParams>right;
+
+			try {
+				const StructNode& structNode = table.findStruct($<var>Exp->getType());				
+				for ( int i = 0 ; i < structNode.size() ; i++ ) {
+					$<var>Exp->allocReg(regPool->allocateReg());
+					emit(load($<var>Exp->getReg(), 
+						$<var>Exp->getPlace() + structNode[i].getPlace() ));
+					push($<var>Exp->getReg());
+					regPool->freeReg($<var>Exp->getReg());
+					$<var>Exp->freeReg();
+				}
+			}
+			catch (StructNotFoundException e){
+				if ( $<var>Exp->getType() == "bool") {
+					$<var>Exp->allocReg(regPool->allocateReg());
+					string falseLabel = genLabel();
+					string trueLabel = genLabel();
+					string nextLabel = genLabel();
+
+					emit(falseLabel);
+					emit(loadi($<var>Exp->getReg(),0));
+					vector<int> tempVector = makelist(emit("goto "));
+					emit(trueLabel);
+					emit(loadi($<var>Exp->getReg(),1));
+					emit(nextLabel);
+
+					backpatch($<var>Exp->falselist, falseLabel);
+					backpatch($<var>Exp->truelist, trueLabel);
+					backpatch(tempVector, nextLabel);
+				}
+				push($<var>Exp->getReg());
+				regPool->freeReg($<var>Exp->getReg());
+				$<var>Exp->freeReg();
+			}
+
 			if (($<var>Exp)->getName() == "__temp"){
 				delete ($<var>Exp);
 			}
-			// #NoEmit
 		}
 /****************************************************************************/
 ;
@@ -794,12 +864,7 @@ VarDecl[result] : Type ID {
 				errorDef(yylineno,*($<str>ID));
 				exit(0);
 			}
-			emit("sw $0, 0($sp)");
-			stringstream code;
-			code 
-				<< "addi $sp, $sp, " 
-				<< $<var>result->getSize();
-			emit(code.str());
+			push(0);
 			delete($<str>Type);
 			delete($<str>ID);
 		}
@@ -825,12 +890,7 @@ VarDecl[result] : Type ID {
 			}
 			const StructNode& structNode = table->findStruct(*($<str>StructType));
 			for ( int i = 0 ; i < structNode.size() ; i++ ) {
-				emit("sw $0, 0($sp)");
-				stringstream code;
-				code 
-					<< "addi $sp, $sp, " 
-					<< structNode[i].getSize();
-				emit(code.str());			
+				push(0);
 			}
 			delete($<str>StructType);
 			delete($<str>ID);
@@ -1020,8 +1080,25 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				errorUndef(yylineno,*($<str>ID));
 				exit(0);
 			}
-			$<var>result->allocReg(regPool->allocateReg());
-			emit(load($<var>result->getReg(), $<var>result->getPlace()));
+			try {
+				table.findStruct($<var>result->getType());
+			}
+			catch (StructNotFoundException e){
+				$<var>result->allocReg(regPool->allocateReg());
+				emit(load($<var>result->getReg(), $<var>result->getPlace()));
+				if ( $<var>result->getType() == "bool") {
+					stringstream code;
+					code 
+						<< "beq $" 
+						<< $<var>result->getReg()	
+						<< ", $0" 
+						<< ", ";
+					$<var>result->falselist = emitWithPatch(code.str());
+					$<var>result->truelist = emitWithPatch("goto ");
+					regPool->freeReg($<var>result->getReg());
+					$<var>result->freeReg();
+				}
+			}
 			delete ($<str>ID);
 		}
 /****************************************************************************/
@@ -1368,6 +1445,37 @@ string load(int reg, int offset) {
 		<< offset
 		<< "($fp)";
 	return code.str();
+}
+
+string store(int reg, int offset) {
+	stringstream code;
+	code 
+		<< "sw $"
+		<< reg
+		<< ", "
+		<< offset
+		<< "($fp)";
+	return code.str();
+}
+
+void pop(int reg) {
+	stringstream code;
+	emit("addi $sp,$sp,4");
+	code 
+		<< "lw $"
+		<< reg
+		<< ", 0($sp)";
+	emit(code.str());
+}
+
+void push(int reg) {
+	stringstream code;
+	code 
+		<< "sw $"
+		<< reg
+		<< ", 0($sp)";
+	emit(code.str());
+	emit("addi $sp,$sp,-4");
 }
 
 vector<int> merge(const vector<int> &l1,const vector<int> &l2) {
