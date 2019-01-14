@@ -12,4 +12,4 @@ flex scanner.lex
 bison -d parser.ypp
 g++ parser.tab.cpp SymbolTable.cpp bp.cpp output.cpp lex.yy.c
 
-./a.out < $1
+./a.out < $testFile
