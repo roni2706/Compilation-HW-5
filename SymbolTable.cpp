@@ -122,12 +122,14 @@ void StructMembers::addMember(const Var& var) {
 	if (!isTypeExists(var.getType())) {
 		throw InvalidTypeNameException();
 	}
-	
-	_members->push_back(new Var(
-		var.getName(),
-		var.getType(),
-		memSize(),
-		var.getSize()));
+	_members->push_back(
+		new Var(
+			var.getName(),
+			var.getType(),
+			memSize(),
+			var.getSize()
+		)
+	);
 	_membersNames->push_back(var.getName());
 	_membersTypes->push_back(var.getType());
 }
@@ -922,9 +924,8 @@ void SymbolTable::addStruct(
 		throw NameAlreadyExistsException();
 	}
 	addType(name);
-	_structs->insert(new StructNode(name, structMems));	
+	_structs->insert(new StructNode(name, structMems));
 }
-
 
 void SymbolTable::addStruct(
 	const string& name,
@@ -982,17 +983,6 @@ void SymbolTable::addStruct(
 		delete (structNode);
 		throw;
 	}
-}
-	
-// Adds the given struct with the given name, and optional StructMembers
-// object, to the *current Scope*.
-// if the struct's name already exists in some context (either as a variable,
-// a struct or a function name) throws: NameAlreadyExistsException.
-void SymbolTable::addStruct(const StructNode& structNode) {
-	addStruct(
-		structNode.getName(),
-		structNode.getMembersNames(),
-		structNode.getMembersTypes());
 }
 
 // Returns a struct object with the given name.

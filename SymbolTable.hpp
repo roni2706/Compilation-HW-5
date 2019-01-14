@@ -52,7 +52,7 @@ private:
 class Var {
 public:
 	// Constructors
-	Var(const string& name, const string& type, int place = 0, int size = 1);
+	Var(const string& name, const string& type, int place = 0, int size = 4);
 	Var(const Var& var);
 	// Destructor
 	~Var();
@@ -419,14 +419,6 @@ public:
 		const vector<string>& names,
 		const vector<string>& types
 	);
-
-
-	// Adds the given struct with the given name, and optional StructMembers
-	// object, to the *current Scope*.
-	// if the struct's name already exists in some context (either as a variable,
-	// a struct or a function name) throws: NameAlreadyExistsException.
-	void addStruct(const StructNode& structNode);
-
 
 	// Returns a struct object with the given name.
 	// If no such struct exists throws: StructNotFoundException.
