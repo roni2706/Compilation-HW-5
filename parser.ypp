@@ -871,8 +871,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /* Exp -> Exp MUL Exp */
 /****************************************************************************/
 		| Exp[left] MUL Exp[right] { 
-			if ((($<var>left)->getType() != "int") && 
-				(($<var>left)->getType() != "byte")){
+			if (($<var>left->getType() != "int") && 
+				($<var>left->getType() != "byte")){
 				// Mismatch of type for operation
 				errorMismatch(yylineno);
 				exit(0);	
@@ -883,23 +883,23 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				errorMismatch(yylineno);
 				exit(0);	
 			}
-			if ((($<var>left)->getType() == "int") || 
-				(($<var>right)->getType() == "int")){
-				($<var>result) = new Var("__temp","int");
+			if (($<var>left->getType() == "int") || 
+				($<var>right->getType() == "int")){
+				$<var>result = new Var("__temp","int");
 			}
 			else {
-				($<var>result) = new Var("__temp","byte");
+				$<var>result = new Var("__temp","byte");
 			}
-			regPool->freeReg(($<var>left)->getReg());
-			regPool->freeReg(($<var>right)->getReg());
+			regPool->freeReg($<var>left->getReg());
+			regPool->freeReg($<var>right->getReg());
 			($<var>result)->allocReg(regPool->allocateReg());
 			// TODO: emit code
-			($<var>left)->freeReg();
-			($<var>right)->freeReg();
-			if (($<var>left)->getName() == "__temp"){
+			$<var>left->freeReg();
+			$<var>right->freeReg();
+			if ($<var>left->getName() == "__temp"){
 				delete ($<var>left);
 			}
-			if (($<var>right)->getName() == "__temp"){
+			if ($<var>right->getName() == "__temp"){
 				delete ($<var>right);
 			}
 		}
