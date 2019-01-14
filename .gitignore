@@ -4,3 +4,4 @@ parser.output
 parser.tab.cpp
 parser.tab.cpp
 test
+parser.tab.cpp
