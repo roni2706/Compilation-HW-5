@@ -1113,7 +1113,11 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			($<var>result) = new Var("__temp","bool");	
+<<<<<<< HEAD
 			backpatch(($<var>left)->truelist,*($<str>3));
+=======
+			backpatch(($<var>left)->truelist,($<var>3)->quad);
+>>>>>>> 611a7a4f02dae817ca58be867eed66ab50012c91
 			($<var>result)->falselist = merge(($<var>left)->falselist,($<var>right)->falselist);
 			($<var>result)->truelist =($<var>right)->truelist;
 			delete ($<str>3);
@@ -1143,7 +1147,11 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			($<var>result) = new Var("__temp","bool");	
+<<<<<<< HEAD
 			backpatch(($<var>left)->falselist,*($<str>3));
+=======
+			codeBuffer.bpatch(($<var>left)->falselist,($<var>3)->quad);
+>>>>>>> 611a7a4f02dae817ca58be867eed66ab50012c91
 			($<var>result)->truelist = merge(($<var>left)->truelist,($<var>right)->truelist);
 			($<var>result)->falselist =($<var>right)->falselist;
 			delete ($<str>3);
