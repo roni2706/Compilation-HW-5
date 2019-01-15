@@ -485,10 +485,12 @@ Statement[result] : LBRACE {
 		/********************************************************************/
 			const string& rightType = ($<var>right)->getType();
 			const string& rightName = ($<var>right)->getName();
+			const int rightPlace = $<var>right->getPlace();
 			const string& leftType = (
 				table->findVar(*($<str>left))).getType();
 			const string& leftName = (
 				table->findVar(*($<str>left))).getName();
+			const int leftPlace = table->findVar(*($<str>left)).getPlace();
 			if ((leftType != rightType)&&
 				(leftType != "int" || rightType != "byte")){
 				// Mismatch of assing operation
@@ -496,23 +498,34 @@ Statement[result] : LBRACE {
 				exit(0);
 			}
 
-			if ( $<var>right->getType() == "bool") {
-				$<var>right->allocReg(regPool->allocateReg());
-				string falseLabel = genLabel();
-				emit(loadi($<var>right->getReg(),0));
-				vector<int> tempVector = makelist(emit("goto "));
-				string trueLabel = genLabel();
-				emit(loadi($<var>right->getReg(),1));
-				string nextLabel = genLabel();
-				backpatch($<var>right->falselist(), falseLabel);
-				backpatch($<var>right->truelist(), trueLabel);
-				backpatch(tempVector, nextLabel);
+			try {
+				const StructNode& structNode = table->findStruct(rightType);				
+				for ( int i = 0 ; i < structNode.size() ; i++ ) {
+					$<var>right->allocReg(regPool->allocateReg());
+					int structMemPlace = structNode[i].getPlace();
+					emit(load($<var>right->getReg(), rightPlace + structMemPlace ));
+					emit(store($<var>right->getReg(),leftPlace + structMemPlace ));					
+					regPool->freeReg($<var>right->getReg());
+					$<var>right->freeReg();
+				}
 			}
-			emit(store($<var>right->getReg(),
-				table->findVar(*($<str>left)).getPlace()));
-			regPool->freeReg($<var>right->getReg());
-			$<var>right->freeReg();
-
+			catch (StructNotFoundException e){
+				if ( rightType == "bool") {
+					$<var>right->allocReg(regPool->allocateReg());
+					string falseLabel = genLabel();
+					emit(loadi($<var>right->getReg(),0));
+					vector<int> tempVector = makelist(emit("goto "));
+					string trueLabel = genLabel();
+					emit(loadi($<var>right->getReg(),1));
+					string nextLabel = genLabel();
+					backpatch($<var>right->falselist(), falseLabel);
+					backpatch($<var>right->truelist(), trueLabel);
+					backpatch(tempVector, nextLabel);
+				}
+				emit(store($<var>right->getReg(),leftPlace));
+				regPool->freeReg($<var>right->getReg());
+				$<var>right->freeReg();
+			}
 			if (rightName == "__temp"){
 				delete ($<var>right);
 			}
@@ -642,7 +655,9 @@ Statement[result] : LBRACE {
 				backpatch($<var>right->truelist(), trueLabel);
 				backpatch(tempVector, nextLabel);
 			}
-			emit("move $v0, $" + $<var>right->getReg());
+			stringstream code;
+			code << "move $v0, $" << $<var>right->getReg();
+			emit(code.str());
 			regPool->freeReg($<var>right->getReg());
 			$<var>right->freeReg();
 			$<node>result = new Node();
