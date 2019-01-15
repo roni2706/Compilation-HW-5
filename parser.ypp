@@ -780,16 +780,11 @@ ExpList[result] : Exp {
 				if ( $<var>Exp->getType() == "bool") {
 					$<var>Exp->allocReg(regPool->allocateReg());
 					string falseLabel = genLabel();
-					string trueLabel = genLabel();
-					string nextLabel = genLabel();
-
-					emit(falseLabel);
 					emit(loadi($<var>Exp->getReg(),0));
 					vector<int> tempVector = makelist(emit("goto "));
-					emit(trueLabel);
+					string trueLabel = genLabel();
 					emit(loadi($<var>Exp->getReg(),1));
-					emit(nextLabel);
-
+					string nextLabel = genLabel();
 					backpatch($<var>Exp->falselist, falseLabel);
 					backpatch($<var>Exp->truelist, trueLabel);
 					backpatch(tempVector, nextLabel);
@@ -826,16 +821,11 @@ ExpList[result] : Exp {
 				if ( $<var>Exp->getType() == "bool") {
 					$<var>Exp->allocReg(regPool->allocateReg());
 					string falseLabel = genLabel();
-					string trueLabel = genLabel();
-					string nextLabel = genLabel();
-
-					emit(falseLabel);
 					emit(loadi($<var>Exp->getReg(),0));
 					vector<int> tempVector = makelist(emit("goto "));
-					emit(trueLabel);
+					string trueLabel = genLabel();
 					emit(loadi($<var>Exp->getReg(),1));
-					emit(nextLabel);
-
+					string nextLabel = genLabel();
 					backpatch($<var>Exp->falselist, falseLabel);
 					backpatch($<var>Exp->truelist, trueLabel);
 					backpatch(tempVector, nextLabel);
