@@ -766,7 +766,7 @@ ExpList[result] : Exp {
 			$<funcParams>result = parameters;
 
 			try {
-				const StructNode& structNode = table.findStruct($<var>Exp->getType());				
+				const StructNode& structNode = table->findStruct($<var>Exp->getType());				
 				for ( int i = 0 ; i < structNode.size() ; i++ ) {
 					$<var>Exp->allocReg(regPool->allocateReg());
 					emit(load($<var>Exp->getReg(), 
@@ -812,7 +812,7 @@ ExpList[result] : Exp {
 			$<funcParams>result = $<funcParams>right;
 
 			try {
-				const StructNode& structNode = table.findStruct($<var>Exp->getType());				
+				const StructNode& structNode = table->findStruct($<var>Exp->getType());				
 				for ( int i = 0 ; i < structNode.size() ; i++ ) {
 					$<var>Exp->allocReg(regPool->allocateReg());
 					emit(load($<var>Exp->getReg(), 
@@ -1081,7 +1081,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			try {
-				table.findStruct($<var>result->getType());
+				table->findStruct($<var>result->getType());
 			}
 			catch (StructNotFoundException e){
 				$<var>result->allocReg(regPool->allocateReg());

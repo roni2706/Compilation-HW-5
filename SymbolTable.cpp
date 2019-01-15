@@ -31,10 +31,8 @@ RegPool::~RegPool() {
 }
 
 int RegPool::allocateReg() {
-	cout << "RegPool::allocateReg()" << endl;
 	bool* currentRegPool = (regPool->back()); 
 	for( int i = 0 ; i < N ; i++ ) {
-		cout << "i: " << i << endl;
 		if ( !currentRegPool[i] ) {
 			currentRegPool[i] = true;
 			return i+8;
