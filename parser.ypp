@@ -33,6 +33,8 @@
 	void rpop(int reg);
 	void push(int reg);
 	void rpush(int reg);
+	void storeRegs();
+	void loadRegs();
 	
 %}
 
@@ -49,8 +51,8 @@
 %type <str> FormalDecl
 %type <structMembers> StructMemList
 %type <str> StructMem
-%type <str> Statements
-%type <str> Statement
+%type <node> Statements
+%type <node> Statement
 %type <str> If
 %type <var> Call
 %type <funcParams> CallParams
@@ -198,20 +200,25 @@ FuncDecl : RetType ID {
 			else {
 				table->addScope("function",*($<str>RetType));
 			}
+			emit("");
+			emit("#function: " + *($<str>ID));
 			emit(*($<str>ID) + ":");
 			push(30); //backup $fp
 			emit("addi $fp, $sp, 4");
-			// TODO: implement storeRegs() and add a call for it;
+			storeRegs();
 		/********************************************************************/
 		} Statements { } RBRACE {
 		/********************************************************************/
 			stringstream code;
-			code << *($<str>ID) << "_end:";
+			code << *($<str>ID) << "_end";
+			//backpatch($<node>Statements->nextlist(),code.str());
+			code << ":";
 			emit(code.str());
-			// backpatch nexlist (function end)
-			// addi $sp, $fp, -18*4
-			// TODO: implement loadRegs() and add a call for it;
-			// recover fp
+			
+			emit("addi $sp, $fp, -72");
+			loadRegs();
+			pop(30);
+			emit("jr $ra");
 			try{
 				table->removeScope();
 			}
@@ -409,9 +416,9 @@ Statements : Statement { }
 /****************************************************************************/
 ;
 
-/* Statements -> LBRACE Statements RBRACE */
+/* Statement -> LBRACE Statements RBRACE */
 /****************************************************************************/
-Statement : LBRACE { 
+Statement[result] : LBRACE { 
 		/********************************************************************/
 			const string& initiator = table->getScopeInitiator();
 			const string& retType = table->getScopeRetType();
@@ -429,19 +436,19 @@ Statement : LBRACE {
 /****************************************************************************/
 
 
-/* Statements -> VarDecl SC */
+/* Statement -> VarDecl SC */
 /****************************************************************************/
 		| VarDecl SC { }
 /****************************************************************************/
 
 
-/* Statements -> StructsDecl */
+/* Statement -> StructsDecl */
 /****************************************************************************/
 		| StructsDecl { }
 /****************************************************************************/
 
 
-/* Statements -> VarDecl ASSIGN Exp SC */
+/* Statement -> VarDecl ASSIGN Exp SC */
 /****************************************************************************/
 		| VarDecl[left] ASSIGN Exp[right] SC {
 			const string& leftType = ($<var>left)->getType();
@@ -488,6 +495,24 @@ Statement : LBRACE {
 				errorMismatch(yylineno);
 				exit(0);
 			}
+
+			if ( $<var>right->getType() == "bool") {
+				$<var>right->allocReg(regPool->allocateReg());
+				string falseLabel = genLabel();
+				emit(loadi($<var>right->getReg(),0));
+				vector<int> tempVector = makelist(emit("goto "));
+				string trueLabel = genLabel();
+				emit(loadi($<var>right->getReg(),1));
+				string nextLabel = genLabel();
+				backpatch($<var>right->falselist(), falseLabel);
+				backpatch($<var>right->truelist(), trueLabel);
+				backpatch(tempVector, nextLabel);
+			}
+			emit(store($<var>right->getReg(),
+				table->findVar(*($<str>left))).getPlace()));
+			regPool->freeReg($<var>right->getReg());
+			$<var>right->freeReg();
+
 			if (rightName == "__temp"){
 				delete ($<var>right);
 			}
@@ -542,6 +567,26 @@ Statement : LBRACE {
 				errorMismatch(yylineno);
 				exit(0);
 			}
+			
+			if ( $<var>right->getType() == "bool") {
+				$<var>right->allocReg(regPool->allocateReg());
+				string falseLabel = genLabel();
+				emit(loadi($<var>right->getReg(),0));
+				vector<int> tempVector = makelist(emit("goto "));
+				string trueLabel = genLabel();
+				emit(loadi($<var>right->getReg(),1));
+				string nextLabel = genLabel();
+				backpatch($<var>right->falselist(), falseLabel);
+				backpatch($<var>right->truelist(), trueLabel);
+				backpatch(tempVector, nextLabel);
+			}
+			const StructNode& structNode = table->findStruct(structName);				
+			emit(store($<var>right->getReg(), 
+				$<var>right->getPlace() + (structNode->find($<str>mid)).getPlace() ));
+			
+			regPool->freeReg($<var>right->getReg());
+			$<var>right->freeReg();
+
 			if (rightName == "__temp"){
 				delete ($<var>right);
 			}
@@ -553,6 +598,7 @@ Statement : LBRACE {
 /****************************************************************************/
 		| Call SC {
 			delete ($<var>Call);
+			//NoEmit2
 		}
 /****************************************************************************/
 
@@ -566,6 +612,8 @@ Statement : LBRACE {
 				errorMismatch(yylineno);
 				exit(0);
 			}
+			$<node>result = new Node();
+			$<node>result->returnlist() = emitWithPatch("goto ");
 		}
 /****************************************************************************/
 
@@ -582,11 +630,23 @@ Statement : LBRACE {
 				errorMismatch(yylineno);
 				exit(0);
 			}
-			if (rightType == "bool") {
-				backpatch($<var>right->truelist(),genLabel());
-				backpatch($<var>right->falselist(),genLabel());
+			if ( $<var>right->getType() == "bool") {
+				$<var>right->allocReg(regPool->allocateReg());
+				string falseLabel = genLabel();
+				emit(loadi($<var>right->getReg(),0));
+				vector<int> tempVector = makelist(emit("goto "));
+				string trueLabel = genLabel();
+				emit(loadi($<var>right->getReg(),1));
+				string nextLabel = genLabel();
+				backpatch($<var>right->falselist(), falseLabel);
+				backpatch($<var>right->truelist(), trueLabel);
+				backpatch(tempVector, nextLabel);
 			}
-			// TODO: emit 
+			emit("move $v0, $" + $<var>right->getReg());
+			regPool->freeReg($<var>right->getReg());
+			$<var>right->freeReg();
+			$<node>result = new Node();
+			$<node>result->returnlist() = emitWithPatch("goto ");
 			if (rightName == "__temp"){
 				delete ($<var>right);
 			}
@@ -648,8 +708,8 @@ Statement : LBRACE {
 				errorUnexpectedBreak(yylineno);
 				exit(0);
 			}
-			// TODO: emit code
-			// goto nextlist
+			$<node>result = new Node();
+			$<node>result->falselist() = emitWithPatch("goto ");
 		}
 /****************************************************************************/
 
@@ -662,8 +722,8 @@ Statement : LBRACE {
 				errorUnexpectedContinue(yylineno);
 				exit(0);
 			}
-			// TODO: emit code
-			// goto nextlist
+			$<node>result = new Node();
+			$<node>result->truelist() = emitWithPatch("goto ");
 		}
 /****************************************************************************/
 ;
@@ -751,16 +811,18 @@ Call[result] : ID LPAREN {
 				}
 			}
 			$<var>result = new Var("__temp",func.getRetType());
-			$<var>result->allocReg(regPool->allocateReg());
 			push(31); // backup $ra
 			stringstream code;
 			code.str("");
 			code << "jal " << func.getName(); 
 			emit (code.str());
 			code.str("");
-			code << "move $" << $<var>result->getReg() << ", $va";
-			emit (code.str());
-			pop(31);
+			if ( func.getRetType() != "void" ) {
+				$<var>result->allocReg(regPool->allocateReg());
+				code << "move $" << $<var>result->getReg() << ", $v0";
+				emit (code.str());
+			}
+			pop(31); // restore $ra
 			code << "addi $sp, $sp, " << func.memSize();
 			delete($<str>ID);
 		}
@@ -1529,6 +1591,21 @@ vector<int> merge(const vector<int> &l1,const vector<int> &l2) {
 	return CodeBuffer::merge(l1,l2);
 }
 
+void storeRegs() {
+	emit("#####storeRegs_start");
+	for( int i = 8 ; i < N+8 ; i++ ) {
+		//push(i);
+	}		
+	emit("#####storeRegs_end");
+}
+
+void loadRegs() {
+	emit("#####loadRegs_start");
+	for( int i = N+7 ; i >= 8 ; i-- ) {
+		//pop(i);
+	}		
+	emit("#####loadRegs_end");
+}
 
 
 
