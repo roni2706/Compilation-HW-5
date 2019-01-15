@@ -61,7 +61,30 @@ void RegPool::deallocPool() {
 	regPool->pop_back();
 }
 
+/****************************************************************************/
+/*                              BACKPATCHABLE                               */
+/****************************************************************************/
 
+// Constructors
+Backpatchable::Backpatchable() {}
+// Destructor
+Backpatchable::~Backpatchable() {}
+// Functions
+vector<int>& Backpatchable::truelist() {
+	return _truelist;
+}
+
+vector<int>& Backpatchable::falselist() {
+	return _falselist;
+}
+
+vector<int>& Backpatchable::nextlist(){
+	return _nextlist;
+}
+
+string& Backpatchable::quad(){
+	return _quad;
+}
 	
 /****************************************************************************/
 /*                                CLASS VAR                                 */

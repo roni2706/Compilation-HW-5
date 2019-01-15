@@ -30,7 +30,9 @@
 	vector<int> merge(const vector<int> &l1,const vector<int> &l2);
 	string store(int reg, int offset);
 	void pop(int reg);
+	void rpop(int reg);
 	void push(int reg);
+	void rpush(int reg);
 	
 %}
 
@@ -138,7 +140,7 @@ Program : {
 				table->removeScope();
 			}
 			catch (RemovedBaseScopeException e) {
-				// as it sould
+				// as it should
 			}
 		/********************************************************************/
 		} EF {
@@ -196,17 +198,28 @@ FuncDecl : RetType ID {
 			else {
 				table->addScope("function",*($<str>RetType));
 			}
-			delete ($<str>ID);
-			delete ($<str>RetType);
+			emit(*($<str>ID) + ":");
+			push(30); //backup $fp
+			emit("addi $fp, $sp, 4");
+			// TODO: implement storeRegs() and add a call for it;
 		/********************************************************************/
 		} Statements { } RBRACE {
 		/********************************************************************/
+			stringstream code;
+			code << *($<str>ID) << "_end:";
+			emit(code.str());
+			// backpatch nexlist (function end)
+			// addi $sp, $fp, -18*4
+			// TODO: implement loadRegs() and add a call for it;
+			// recover fp
 			try{
 				table->removeScope();
 			}
 			catch (NoScopesException e){
 				throw NoScopesException();
 			}
+			delete ($<str>RetType);
+			delete ($<str>ID);
 		}
 /****************************************************************************/
 ;
@@ -570,8 +583,8 @@ Statement : LBRACE {
 				exit(0);
 			}
 			if (rightType == "bool") {
-				backpatch($<var>right->truelist,genLabel());
-				backpatch($<var>right->falselist,genLabel());
+				backpatch($<var>right->truelist(),genLabel());
+				backpatch($<var>right->falselist(),genLabel());
 			}
 			// TODO: emit 
 			if (rightName == "__temp"){
@@ -686,7 +699,10 @@ If 		: IF LPAREN Exp {
 Call[result] : ID LPAREN { 
 		/********************************************************************/
 			try {
-				table->findFunc(*($<str>ID));
+				const FuncNode& func = table->findFunc(*($<str>ID));
+				stringstream code;
+				code << "addi $sp, $sp, -" << func.memSize();
+				emit(code.str()); 
 			}
 			catch (FunctionNotFoundException e) {
 					// Calling undefined function
@@ -696,19 +712,19 @@ Call[result] : ID LPAREN {
 		/********************************************************************/
 		} CallParams RPAREN {
 		/********************************************************************/
-			FuncNode const *func = &(table->findFunc(*($<str>ID)));
+			const FuncNode& func = table->findFunc(*($<str>ID));
 			if ($<funcParams>CallParams){
 				const vector<string>& givenParamTypes =
 					($<funcParams>CallParams)->getParamsTypes();
-				const vector<string>& paramTypes = func->getParamsTypes();	
-				if (($<funcParams>CallParams)->size() != func->size()){
+				const vector<string>& paramTypes = func.getParamsTypes();	
+				if (($<funcParams>CallParams)->size() != func.size()){
 					// Calling function with wrong signature
 					errorPrototypeMismatch(
 						yylineno,*($<str>ID),
 						printTypeNames(paramTypes));
 					exit(0);
 				}
-				for (int i=0; i<func->size(); i++){
+				for (int i=0; i<func.size(); i++){
 					if ((paramTypes[i] != givenParamTypes[i]) &&
 						(paramTypes[i] != "int" || givenParamTypes[i] != "byte")){
 						// Calling function with wrong signature
@@ -719,23 +735,34 @@ Call[result] : ID LPAREN {
 						exit(0);
 					}
 				}
-				// TODO: emit code
-				// prepare parameters before call
+				stringstream code;
+				code << "addi $sp, $sp, -" << func.memSize();
+				emit(code.str());
 				delete ($<funcParams>CallParams);
 			}
 			else {
-				if (func->size() != 0){
+				if (func.size() != 0){
 					// Calling function with wrong signature
 					errorPrototypeMismatch(
 						yylineno,
 						*($<str>ID),
-						printTypeNames(func->getParamsTypes()));
+						printTypeNames(func.getParamsTypes()));
 					exit(0);
 				}
 			}
-			($<var>result) = new Var("__temp",func->getRetType());
-			// TODO: emit code
-			// call function
+			$<var>result = new Var("__temp",func.getRetType());
+			$<var>result->allocReg(regPool->allocateReg());
+			push(31); // backup $ra
+			stringstream code;
+			code.str("");
+			code << "jal " << func.getName(); 
+			emit (code.str());
+			code.str("");
+			code << "move $" << $<var>result->getReg() << ", $va";
+			emit (code.str());
+			pop(31);
+			code << "addi $sp, $sp, " << func.memSize();
+			delete($<str>ID);
 		}
 /****************************************************************************/
 ;
@@ -771,7 +798,7 @@ ExpList[result] : Exp {
 					$<var>Exp->allocReg(regPool->allocateReg());
 					emit(load($<var>Exp->getReg(), 
 						$<var>Exp->getPlace() + structNode[i].getPlace() ));
-					push($<var>Exp->getReg());
+					rpush($<var>Exp->getReg());
 					regPool->freeReg($<var>Exp->getReg());
 					$<var>Exp->freeReg();
 				}
@@ -785,11 +812,11 @@ ExpList[result] : Exp {
 					string trueLabel = genLabel();
 					emit(loadi($<var>Exp->getReg(),1));
 					string nextLabel = genLabel();
-					backpatch($<var>Exp->falselist, falseLabel);
-					backpatch($<var>Exp->truelist, trueLabel);
+					backpatch($<var>Exp->falselist(), falseLabel);
+					backpatch($<var>Exp->truelist(), trueLabel);
 					backpatch(tempVector, nextLabel);
 				}
-				push($<var>Exp->getReg());
+				rpush($<var>Exp->getReg());
 				regPool->freeReg($<var>Exp->getReg());
 				$<var>Exp->freeReg();
 			}
@@ -812,7 +839,7 @@ ExpList[result] : Exp {
 					$<var>Exp->allocReg(regPool->allocateReg());
 					emit(load($<var>Exp->getReg(), 
 						$<var>Exp->getPlace() + structNode[i].getPlace() ));
-					push($<var>Exp->getReg());
+					rpush($<var>Exp->getReg());
 					regPool->freeReg($<var>Exp->getReg());
 					$<var>Exp->freeReg();
 				}
@@ -826,11 +853,11 @@ ExpList[result] : Exp {
 					string trueLabel = genLabel();
 					emit(loadi($<var>Exp->getReg(),1));
 					string nextLabel = genLabel();
-					backpatch($<var>Exp->falselist, falseLabel);
-					backpatch($<var>Exp->truelist, trueLabel);
+					backpatch($<var>Exp->falselist(), falseLabel);
+					backpatch($<var>Exp->truelist(), trueLabel);
 					backpatch(tempVector, nextLabel);
 				}
-				push($<var>Exp->getReg());
+				rpush($<var>Exp->getReg());
 				regPool->freeReg($<var>Exp->getReg());
 				$<var>Exp->freeReg();
 			}
@@ -1083,8 +1110,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 						<< $<var>result->getReg()	
 						<< ", $0" 
 						<< ", ";
-					$<var>result->falselist = emitWithPatch(code.str());
-					$<var>result->truelist = emitWithPatch("goto ");
+					$<var>result->falselist() = emitWithPatch(code.str());
+					$<var>result->truelist() = emitWithPatch("goto ");
 					regPool->freeReg($<var>result->getReg());
 					$<var>result->freeReg();
 				}
@@ -1142,7 +1169,18 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /****************************************************************************/
 		| Call {
 			$<var>result = $<var>Call;
-			// #NoEmit
+			if ( $<var>result->getType() == "bool") {
+				stringstream code;
+				code 
+					<< "beq $" 
+					<< $<var>result->getReg()	
+					<< ", $0" 
+					<< ", ";
+				$<var>result->falselist() = emitWithPatch(code.str());
+				$<var>result->truelist() = emitWithPatch("goto ");
+				regPool->freeReg($<var>result->getReg());
+				$<var>result->freeReg();
+			}
 		}
 /****************************************************************************/
 
@@ -1187,7 +1225,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /****************************************************************************/
 		| TRUE {
 			$<var>result = new Var("__temp","bool");
-			$<var>result->truelist = emitWithPatch("goto ");
+			$<var>result->truelist() = emitWithPatch("goto ");
 		}
 /****************************************************************************/
 
@@ -1196,7 +1234,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /****************************************************************************/
 		| FALSE {
 			$<var>result = new Var("__temp","bool");
-			$<var>result->falselist = emitWithPatch("goto ");
+			$<var>result->falselist() = emitWithPatch("goto ");
 		}
 /****************************************************************************/
 
@@ -1212,8 +1250,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			$<var>result = new Var("__temp","bool");
-			$<var>result->truelist = $<var>left->falselist;
-			$<var>result->falselist = $<var>left->truelist;
+			$<var>result->truelist() = $<var>left->falselist();
+			$<var>result->falselist() = $<var>left->truelist();
 			if (leftName == "__temp"){
 				delete ($<var>left);
 			}
@@ -1237,12 +1275,12 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			($<var>result) = new Var("__temp","bool");	
-			backpatch($<var>left->truelist,*($<str>3));
-			$<var>result->falselist = merge(
-				$<var>left->falselist,
-				$<var>right->falselist
+			backpatch($<var>left->truelist(),*($<str>3));
+			$<var>result->falselist() = merge(
+				$<var>left->falselist(),
+				$<var>right->falselist()
 			);
-			$<var>result->truelist =$<var>right->truelist;
+			$<var>result->truelist() =$<var>right->truelist();
 			delete ($<str>3);
 			if ($<var>left->getName() == "__temp"){
 				delete ($<var>left);
@@ -1270,12 +1308,12 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				exit(0);
 			}
 			$<var>result = new Var("__temp","bool");	
-			backpatch($<var>left->falselist,*($<str>3));
-			$<var>result->truelist = merge(
-				$<var>left->truelist,
-				$<var>right->truelist
+			backpatch($<var>left->falselist(),*($<str>3));
+			$<var>result->truelist() = merge(
+				$<var>left->truelist(),
+				$<var>right->truelist()
 			);
-			$<var>result->falselist = $<var>right->falselist;
+			$<var>result->falselist() = $<var>right->falselist();
 			delete ($<str>3);
 			if ($<var>left->getName() == "__temp"){
 				delete ($<var>left);
@@ -1322,8 +1360,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				<< $<var>right->getReg()
 				<< ", ";
 
-			$<var>result->truelist = emitWithPatch(code.str());
-			$<var>result->falselist = emitWithPatch("goto ");
+			$<var>result->truelist() = emitWithPatch(code.str());
+			$<var>result->falselist() = emitWithPatch("goto ");
 			$<var>left->freeReg();
 			$<var>right->freeReg();
 			delete ($<str>REL);
@@ -1368,8 +1406,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				<< ", $" 
 				<< $<var>right->getReg() 
 				<< ", ";
-			$<var>result->truelist = emitWithPatch(code.str());
-			$<var>result->falselist = emitWithPatch("goto ");
+			$<var>result->truelist() = emitWithPatch(code.str());
+			$<var>result->falselist() = emitWithPatch("goto ");
 			$<var>left->freeReg();
 			$<var>right->freeReg();
 			delete ($<str>EQ);
@@ -1458,6 +1496,16 @@ void pop(int reg) {
 	emit(code.str());
 }
 
+void rpop(int reg) {
+	stringstream code;
+	code 
+		<< "lw $"
+		<< reg
+		<< ", 0($sp)";
+	emit(code.str());
+	emit("addi $sp, $sp, -4");
+}
+
 void push(int reg) {
 	stringstream code;
 	code 
@@ -1465,9 +1513,18 @@ void push(int reg) {
 		<< reg
 		<< ", 0($sp)";
 	emit(code.str());
-	emit("addi $sp,$sp,-4");
+	emit("addi $sp, $sp, -4");
 }
 
+void rpush(int reg) {
+	stringstream code;
+	emit("addi $sp, $sp, 4");
+	code 
+		<< "sw $"
+		<< reg
+		<< ", 0($sp)";
+	emit(code.str());
+}
 vector<int> merge(const vector<int> &l1,const vector<int> &l2) {
 	return CodeBuffer::merge(l1,l2);
 }

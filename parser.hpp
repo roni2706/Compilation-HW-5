@@ -15,6 +15,7 @@ typedef union {
 	int num;
 	string* str;
 	Var *var;
+	Node *node;
 	StructMembers* structMembers;
 	StructNode* structNode;
 	FuncParams* funcParams;

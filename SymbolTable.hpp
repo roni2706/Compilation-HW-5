@@ -49,9 +49,36 @@ private:
 };
 
 /****************************************************************************/
+/*                              BACKPATCHABLE                               */
+/****************************************************************************/
+class Backpatchable {
+public:
+	// Constructors
+	Backpatchable();
+	// Destructor
+	~Backpatchable();
+	// Functions
+	vector<int>& truelist();
+	vector<int>& falselist();
+	vector<int>& nextlist();
+	string& quad();
+private:
+	vector<int> _truelist;
+	vector<int> _falselist;
+	vector<int> _nextlist;
+	string _quad;
+};
+
+
+/****************************************************************************/
+/*                              STATEMENTS VAR                              */
+/****************************************************************************/
+class Node : public Backpatchable { };
+
+/****************************************************************************/
 /*                                CLASS VAR                                 */
 /****************************************************************************/
-class Var {
+class Var : public Backpatchable {
 public:
 	// Constructors
 	Var(const string& name, const string& type, int place = 0, int size = 4);
@@ -66,10 +93,6 @@ public:
 	int getReg() const;
 	void freeReg();
 	void allocReg(int reg);
-	vector<int> truelist;
-	vector<int> falselist;
-	vector<int> nextlist;
-	string quad;
 private:
 	string _name;
 	string _type;
