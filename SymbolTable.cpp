@@ -326,6 +326,14 @@ int FuncParams::size() const {
 	return _parameters->size();
 }
 
+int FuncParams::memSize() const {
+	int size = 0;
+	for (int i = 0; i < this->size(); i++) {
+		size += getParameters()[i]->getSize();
+	}
+	return size; 
+}
+
 const Var& FuncParams::operator[](int i) const {
 	return *(getParameters()[i]);
 }
@@ -387,6 +395,10 @@ void FuncNode::print() const {
 
 int FuncNode::size() const {
 	return _funcParams->size();
+}
+
+int FuncNode::memSize() const {
+	return _funcParams->memSize();
 }
 
 bool FuncNode::isRetTypeValid(const string& name) const {

@@ -152,6 +152,7 @@ public:
 	const Var& find(const string& name) const;
 	bool isNameUsed(const string& name) const;
 	int size() const;
+	int memSize() const;
 	const Var& operator[](int i) const;
 private:
 	vector<Var*>* _parameters;
@@ -184,6 +185,7 @@ public:
 	const Var& find(const string& name)const;
 	void print()const;
 	int size() const;
+	int memSize() const;
 	bool isRetTypeValid(const string& name) const;
 
 private:
