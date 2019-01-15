@@ -61,11 +61,13 @@ public:
 	vector<int>& truelist();
 	vector<int>& falselist();
 	vector<int>& nextlist();
+	vector<int>& returnlist();
 	string& quad();
 private:
 	vector<int> _truelist;
 	vector<int> _falselist;
 	vector<int> _nextlist;
+	vector<int> _returnlist;
 	string _quad;
 };
 

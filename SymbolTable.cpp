@@ -82,6 +82,10 @@ vector<int>& Backpatchable::nextlist(){
 	return _nextlist;
 }
 
+vector<int>& Backpatchable::returnlist(){
+	return _returnlist;
+}
+
 string& Backpatchable::quad(){
 	return _quad;
 }

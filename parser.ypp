@@ -509,7 +509,7 @@ Statement[result] : LBRACE {
 				backpatch(tempVector, nextLabel);
 			}
 			emit(store($<var>right->getReg(),
-				table->findVar(*($<str>left))).getPlace()));
+				table->findVar(*($<str>left)).getPlace()));
 			regPool->freeReg($<var>right->getReg());
 			$<var>right->freeReg();
 
@@ -582,7 +582,7 @@ Statement[result] : LBRACE {
 			}
 			const StructNode& structNode = table->findStruct(structName);				
 			emit(store($<var>right->getReg(), 
-				$<var>right->getPlace() + (structNode->find($<str>mid)).getPlace() ));
+				$<var>right->getPlace() + (structNode.find(*($<str>mid))).getPlace() ));
 			
 			regPool->freeReg($<var>right->getReg());
 			$<var>right->freeReg();
