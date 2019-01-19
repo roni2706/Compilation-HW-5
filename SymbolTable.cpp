@@ -86,6 +86,14 @@ vector<int>& Backpatchable::returnlist(){
 	return _returnlist;
 }
 
+vector<int>& Backpatchable::breaklist(){
+	return _breaklist;
+}
+
+vector<int>& Backpatchable::continuelist(){
+	return _continuelist;
+}
+
 string& Backpatchable::quad(){
 	return _quad;
 }

@@ -62,8 +62,12 @@ public:
 	vector<int>& falselist();
 	vector<int>& nextlist();
 	vector<int>& returnlist();
+	vector<int>& breaklist();
+	vector<int>& continuelist();
 	string& quad();
 private:
+	vector<int> _breaklist;
+	vector<int> _continuelist;
 	vector<int> _truelist;
 	vector<int> _falselist;
 	vector<int> _nextlist;

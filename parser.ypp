@@ -211,11 +211,12 @@ FuncDecl : RetType ID {
 		/********************************************************************/
 			stringstream code;
 			code << *($<str>ID) << "_end";
-			//backpatch($<node>Statements->nextlist(),code.str());
+			backpatch($<node>Statements->nextlist(),code.str());
+			backpatch($<node>Statements->returnlist(),code.str());
 			code << ":";
 			emit(code.str());
 			
-			emit("addi $sp, $fp, -72");
+			emit("addi $sp, $fp, 72");
 			loadRegs();
 			pop(30);
 			emit("jr $ra");
@@ -406,13 +407,48 @@ StructMem : Type ID SC {
 
 /* Statements -> Statement */
 /****************************************************************************/
-Statements : Statement { }
+Statements[result] : Statement[right] { 
+			$<node>result = new Node();			
+			$<node>result->nextlist() = $<node>right->nextlist();
+			$<node>result->continuelist() = $<node>right->continuelist();
+			$<node>result->breaklist() = $<node>right->breaklist();
+			$<node>result->falselist() = $<node>right->falselist();
+			$<node>result->returnlist() = $<node>right->returnlist();
+			$<node>result->truelist() = $<node>right->truelist();
+			delete($<node>right);
+		}
 /****************************************************************************/
 
 
 /* Statements -> Statements Statement */
 /****************************************************************************/
-		| Statements Statement { }
+		| Statements[left] {
+			if (merge(
+				$<node>left->nextlist(),
+				$<node>left->falselist()).size() != 0) {
+					string nextLabel = genLabel();
+					backpatch($<node>left->nextlist(), nextLabel);
+					backpatch($<node>left->falselist(), nextLabel);
+				}
+		} Statement[right] { 
+			$<node>result = new Node();			
+			$<node>result->nextlist() = $<node>right->nextlist();
+			$<node>result->falselist() = $<node>right->falselist();
+			$<node>result->continuelist() = merge(
+				$<node>right->continuelist(),
+				$<node>left->continuelist());
+			$<node>result->breaklist() = merge(
+				$<node>right->breaklist(),
+				$<node>left->breaklist());
+			$<node>result->returnlist() = merge(
+				$<node>right->returnlist(),
+				$<node>left->returnlist());
+			$<node>result->truelist() = merge(
+				$<node>right->truelist(),
+				$<node>left->truelist());
+			delete($<node>left);
+			delete($<node>right);
+		}
 /****************************************************************************/
 ;
 
@@ -429,22 +465,34 @@ Statement[result] : LBRACE {
 				table->addScope(initiator,retType);
 			}
 		/********************************************************************/
-		} Statements { } RBRACE {
+		} Statements[right] RBRACE {
 		/********************************************************************/
 			table->removeScope();
+			$<node>result = new Node();			
+			$<node>result->nextlist() = $<node>right->nextlist();
+			$<node>result->falselist() = $<node>right->falselist();
+			$<node>result->returnlist() = $<node>right->returnlist();
+			$<node>result->truelist() = $<node>right->truelist();
+			$<node>result->continuelist() = $<node>right->continuelist();
+			$<node>result->breaklist() = $<node>right->breaklist();
+			delete($<node>right);
 		}
 /****************************************************************************/
 
 
 /* Statement -> VarDecl SC */
 /****************************************************************************/
-		| VarDecl SC { }
+		| VarDecl SC { 
+			$<node>result = new Node();
+		}
 /****************************************************************************/
 
 
 /* Statement -> StructsDecl */
 /****************************************************************************/
-		| StructsDecl { }
+		| StructsDecl { 
+			$<node>result = new Node();
+		}
 /****************************************************************************/
 
 
@@ -492,8 +540,7 @@ Statement[result] : LBRACE {
 				regPool->freeReg($<var>right->getReg());
 				$<var>right->freeReg();
 			}
-
-			
+			$<node>result = new Node();
 			if (rightName == "__temp"){
 				delete ($<var>right);
 			}
@@ -530,7 +577,6 @@ Statement[result] : LBRACE {
 				errorMismatch(yylineno);
 				exit(0);
 			}
-
 			try {
 				const StructNode& structNode = table->findStruct(rightType);				
 				for ( int i = 0 ; i < structNode.size() ; i++ ) {
@@ -559,6 +605,7 @@ Statement[result] : LBRACE {
 				regPool->freeReg($<var>right->getReg());
 				$<var>right->freeReg();
 			}
+			$<node>result = new Node();
 			if (rightName == "__temp"){
 				delete ($<var>right);
 			}
@@ -629,10 +676,9 @@ Statement[result] : LBRACE {
 			const StructNode& structNode = table->findStruct(structName);				
 			emit(store($<var>right->getReg(), 
 				$<var>right->getPlace() + (structNode.find(*($<str>mid))).getPlace() ));
-			
 			regPool->freeReg($<var>right->getReg());
 			$<var>right->freeReg();
-
+			$<node>result = new Node();
 			if (rightName == "__temp"){
 				delete ($<var>right);
 			}
@@ -644,7 +690,7 @@ Statement[result] : LBRACE {
 /****************************************************************************/
 		| Call SC {
 			delete ($<var>Call);
-			//NoEmit2
+			$<node>result = new Node();
 		}
 /****************************************************************************/
 
@@ -704,30 +750,54 @@ Statement[result] : LBRACE {
 
 /* Statement -> If */
 /****************************************************************************/
-		| If %prec "then"{ }
+		| If %prec "then"{
+			$<node>result = $<node>If;
+			$<node>result->nextlist() = merge(
+				$<node>If->falselist(),
+				$<node>If->nextlist());		
+			$<node>result->falselist().clear();
+		}
 /****************************************************************************/
 
 
 /* Statement -> If ELSE Statement */
 /****************************************************************************/
-		| If ELSE {
+		| If[left] ELSE {
 			if (table->getScopeInitiator() != "while") {
 				table->addScope("else", table->getScopeRetType());
 			}
 			else {
 				table->addScope("while", table->getScopeRetType());
 			}
+			backpatch($<node>left->falselist(),genLabel());			
 		/********************************************************************/
-		} Statement {
+		} Statement[right] {
 		/********************************************************************/
 			table->removeScope();
+			$<node>result = new Node();
+			$<node>result->breaklist() = merge(
+				$<node>right->breaklist(),
+				$<node>left->breaklist());
+			$<node>result->returnlist() = merge(
+				$<node>right->returnlist(),
+				$<node>left->returnlist());
+			$<node>result->nextlist() = merge(
+				$<node>right->nextlist(),
+				$<node>left->nextlist());
+			$<node>result->continuelist() = merge(
+				$<node>right->continuelist(),
+				$<node>left->continuelist());
+			delete($<node>left);
+			delete($<node>right);
 		}
 /****************************************************************************/
 
 
 /* Statement -> WHILE LPAREN Exp RPAREN Statement */
 /****************************************************************************/
-		| WHILE LPAREN Exp { 
+		| WHILE LPAREN {
+			$<str>$ = new string(genLabel());			
+		} Exp { 
 		/********************************************************************/
 			if (($<var>Exp)->getType() != "bool"){
 				// Mismatch of while condition type
@@ -738,12 +808,26 @@ Statement[result] : LBRACE {
 		} RPAREN {
 		/********************************************************************/
 			table->addScope("while", table->getScopeRetType());
+			backpatch($<var>Exp->truelist(),genLabel());
 		/********************************************************************/
-		} Statement {
+		} Statement[right] {
 		/********************************************************************/
 			table->removeScope();
-			// TODO: emit code
-			// Bpatch
+			$<node>result = new Node();
+			backpatch($<node>right->continuelist(),*($<str>3));
+			backpatch($<node>right->nextlist(),*($<str>3));
+			$<node>result->returnlist() = $<node>right->returnlist();
+			$<node>result->nextlist() = merge(
+				$<var>Exp->falselist(),
+				$<node>right->breaklist());
+			stringstream code;
+			code << "goto " << *($<str>3);
+			emit(code.str());
+			if (($<var>Exp)->getName() == "__temp"){
+				delete ($<var>Exp);
+			}
+			delete($<node>right);
+			delete($<str>3);
 		}
 /****************************************************************************/
 
@@ -757,7 +841,7 @@ Statement[result] : LBRACE {
 				exit(0);
 			}
 			$<node>result = new Node();
-			$<node>result->falselist() = emitWithPatch("goto ");
+			$<node>result->breaklist() = emitWithPatch("goto ");
 		}
 /****************************************************************************/
 
@@ -771,20 +855,22 @@ Statement[result] : LBRACE {
 				exit(0);
 			}
 			$<node>result = new Node();
-			$<node>result->truelist() = emitWithPatch("goto ");
+			$<node>result->continuelist() = emitWithPatch("goto ");
+			
 		}
 /****************************************************************************/
 ;
 
 /* If -> IF LPAREN Exp RPAREN Statement */
 /****************************************************************************/
-If 		: IF LPAREN Exp { 
+If[result] 		: IF LPAREN Exp { 
 		/********************************************************************/
 			if (($<var>Exp)->getType() != "bool"){
 				// Mismatch of if condition type
 				errorMismatch(yylineno);
 				exit(0);
 			}
+			backpatch($<var>Exp->truelist(),genLabel());
 		/********************************************************************/
 		} RPAREN {
 		/********************************************************************/
@@ -798,6 +884,18 @@ If 		: IF LPAREN Exp {
 		} Statement {
 		/********************************************************************/
 			table->removeScope();
+			$<node>result = new Node();
+			$<node>result->continuelist() = $<node>Statement->continuelist();
+			$<node>result->breaklist() = $<node>Statement->breaklist();
+			$<node>result->falselist() = $<var>Exp->falselist();
+			$<node>result->returnlist() = $<node>Statement->returnlist();
+			$<node>result->nextlist() = merge(
+				$<node>Statement->nextlist(),
+				emitWithPatch("goto "));
+			if (($<var>Exp)->getName() == "__temp"){
+				delete($<var>Exp);
+			}
+			delete($<node>Statement);
 		}
 /****************************************************************************/
 ;
@@ -1580,7 +1678,7 @@ string load(int reg, int offset) {
 		<< "lw $"
 		<< reg
 		<< ", "
-		<< offset
+		<< -offset
 		<< "($fp)";
 	return code.str();
 }
@@ -1591,7 +1689,7 @@ string store(int reg, int offset) {
 		<< "sw $"
 		<< reg
 		<< ", "
-		<< offset
+		<< -offset
 		<< "($fp)";
 	return code.str();
 }
@@ -1654,19 +1752,4 @@ void loadRegs() {
 	}		
 	emit("#####loadRegs_end");
 }
-
-//TODO: change the offset in store/load +/-
-//TODO: change the offset in store/load +/-
-//TODO: change the offset in store/load +/-
-//TODO: change the offset in store/load +/-
-//TODO: change the offset in store/load +/-
-//TODO: change the offset in store/load +/-
-//TODO: change the offset in store/load +/-
-//TODO: change the offset in store/load +/-
-//TODO: change the offset in store/load +/-
-//TODO: change the offset in store/load +/-
-
-
-
-
 
