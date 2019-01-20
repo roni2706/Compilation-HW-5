@@ -39,7 +39,9 @@ public:
 
 	// ******** Methods to handle the data section ********** //
 	//write a line to the data section
-	void emitData(const std::string& dataLine);
+	int emitData(const std::string& dataLine);
+	
+	std::string genDataLabel();
 	//print the content of the data buffer to stdout including a .data header
 	void printDataBuffer();
 

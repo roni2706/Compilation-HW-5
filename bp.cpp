@@ -56,9 +56,20 @@ vector<int> CodeBuffer::merge(const vector<int> &l1,const vector<int> &l2)
 }
 
 // ******** Methods to handle the data section ********** //
-void CodeBuffer::emitData(const std::string& dataLine) 
+int CodeBuffer::emitData(const std::string& dataLine) 
 {
 	dataDefs.push_back(dataLine);
+	return dataDefs.size() -1;
+}
+
+string CodeBuffer::genDataLabel(){
+	std::stringstream label;
+	label << "str_";
+	label << buffer.size();
+	std::string ret(label.str());
+	label << ":";
+	emitData(label.str());
+	return ret;
 }
 
 void CodeBuffer::printDataBuffer()
