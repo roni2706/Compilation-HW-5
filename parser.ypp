@@ -970,19 +970,19 @@ Call[result] : ID LPAREN {
 			code << "jal " << func.getName(); 
 			emit (code.str());
 			code.str("");
+			code << "addi $sp, $sp, " << func.memSize();
+			emit(code.str());
+			vector<int> usedRegs = regPool->usedRegs(); 
+			for (int i = 0; i < usedRegs.size(); i++) {
+				pop(usedRegs[usedRegs.size() - i - 1]); 
+			}
+			pop(31); // restore $ra
+			code.str("");
 			if ( func.getRetType() != "void" ) {
 				$<var>result->allocReg(regPool->allocateReg());
 				code << "move $" << $<var>result->getReg() << ", $v0";
 				emit (code.str());
 			}
-				code.str("");
-			code << "addi $sp, $sp, " << func.memSize();
-			emit(code.str());
-			vector<int> usedRegs = regPool->usedRegs(); 
-				for (int i = 0; i < usedRegs.size(); i++) {
-					pop(usedRegs[usedRegs.size() - i - 1]); 
-				}
-			pop(31); // restore $ra
 			delete($<str>ID);
 		}
 /****************************************************************************/
