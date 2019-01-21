@@ -653,8 +653,8 @@ Statement[result] : LBRACE {
 		/********************************************************************/
 			const string& rightType = ($<var>right)->getType();
 			const string& rightName = ($<var>right)->getName();
-			const string& structName =
-					table->findVar(*($<str>left)).getType();
+			const Var& structVar = table->findVar(*($<str>left));
+			const string& structName = structVar.getType();
 			const string& leftType = 
 				table->findStruct(structName).find(*($<str>mid)).getType();
 			if ((leftType != rightType)&&
@@ -678,7 +678,7 @@ Statement[result] : LBRACE {
 			}
 			const StructNode& structNode = table->findStruct(structName);				
 			emit(store($<var>right->getReg(), 
-				$<var>right->getPlace() + (structNode.find(*($<str>mid))).getPlace() ));
+				structVar.getPlace() + (structNode.find(*($<str>mid))).getPlace() ));
 			regPool->freeReg($<var>right->getReg());
 			$<var>right->freeReg();
 			$<node>result = new Node();
