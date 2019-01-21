@@ -220,6 +220,7 @@ FuncDecl : RetType ID {
 			backpatch($<node>Statements->returnlist(),code.str());
 			code << ":";
 			emit(code.str());
+			emit("addi $sp, $fp, -4");
 			pop(30);
 			emit("jr $ra");
 			try{

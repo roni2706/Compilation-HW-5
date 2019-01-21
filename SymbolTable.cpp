@@ -939,7 +939,16 @@ void SymbolTable::addFunc(
 	}
 	FuncNode* func;
 	try {
-		func = new FuncNode(name, retType, funcParams);
+		func = new FuncNode(name, retType);
+		for (int i = 0; i < funcParams.size(); i++) {
+			Var var(
+				funcParams[i].getName(), 
+				funcParams[i].getType(),
+				funcParams[i].getPlace(),
+				typeSize(funcParams[i].getType())
+			);
+			func->addParam(var);
+		}
 		_functions->push_back(func);
 	}
 	catch (std::exception e) {
