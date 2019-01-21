@@ -1019,7 +1019,7 @@ ExpList[result] : Exp {
 
 			try {
 				const StructNode& structNode = table->findStruct($<var>Exp->getType());				
-				for ( int i = 0 ; i < structNode.size() ; i++ ) {
+				for ( int i = structNode.size()-1 ; i >= 0 ; i-- ) {
 					$<var>Exp->allocReg(regPool->allocateReg());
 					emit(load($<var>Exp->getReg(), 
 						$<var>Exp->getPlace() + structNode[i].getPlace() ));
@@ -1060,7 +1060,7 @@ ExpList[result] : Exp {
 
 			try {
 				const StructNode& structNode = table->findStruct($<var>Exp->getType());				
-				for ( int i = 0 ; i < structNode.size() ; i++ ) {
+				for ( int i = structNode.size()-1 ; i >= 0 ; i-- ) {
 					$<var>Exp->allocReg(regPool->allocateReg());
 					emit(load($<var>Exp->getReg(), 
 						$<var>Exp->getPlace() + structNode[i].getPlace() ));
