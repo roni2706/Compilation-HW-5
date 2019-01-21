@@ -49,6 +49,17 @@ void RegPool::freeReg(int reg) {
 	(currentRegPool)[reg-8] = false;
 }
 
+vector<int> RegPool::usedRegs() {
+	bool* currentRegPool = (regPool->back()); 
+	vector<int> used;
+	for( int i = 0 ; i < N ; i++ ) {
+		if ( currentRegPool[i] ) {
+			used.push_back(i+8);
+		}
+	}		
+	return used;
+}
+
 void RegPool::reallocPool() {
 	regPool->push_back(new bool[N]);
 	for( int i = 0 ; i < N ; i++ ) {

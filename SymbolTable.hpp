@@ -30,8 +30,6 @@ class TypeNotInScopeException : public std::exception {};
 class InvalidInitiatorNameException : public std::exception {};
 class InvalidRegNumberException : public std::exception {};
 
-
-
 /****************************************************************************/
 /*                              CLASS REG POOL                              */
 /****************************************************************************/
@@ -41,6 +39,7 @@ public:
 	~RegPool();
 	int allocateReg();
 	void freeReg(int reg);
+	vector<int> usedRegs();
 	void reallocPool();
 	void deallocPool();
 	

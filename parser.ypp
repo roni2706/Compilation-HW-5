@@ -210,8 +210,7 @@ FuncDecl : RetType ID {
 			emit("#function: " + *($<str>ID));
 			emit(*($<str>ID) + ":");
 			push(30); //backup $fp
-			emit("addi $fp, $sp, 4");
-			storeRegs();
+			emit("addi $fp, $sp, 4"); //link new fp
 		/********************************************************************/
 		} Statements { } RBRACE {
 		/********************************************************************/
@@ -221,9 +220,6 @@ FuncDecl : RetType ID {
 			backpatch($<node>Statements->returnlist(),code.str());
 			code << ":";
 			emit(code.str());
-			
-			//emit("addi $sp, $fp, 72");
-			loadRegs();
 			pop(30);
 			emit("jr $ra");
 			try{
@@ -913,6 +909,11 @@ Call[result] : ID LPAREN {
 			try {
 				const FuncNode& func = table->findFunc(*($<str>ID));
 				push(31); // backup $ra
+				vector<int> usedRegs = regPool->usedRegs(); 
+				for (int i = 0; i < usedRegs.size(); i++) {
+					push(usedRegs[i]); 
+				}
+				// back up used regs
 				stringstream code;
 				code << "addi $sp, $sp, -" << func.memSize();
 				emit(code.str()); 
@@ -977,6 +978,10 @@ Call[result] : ID LPAREN {
 				code.str("");
 			code << "addi $sp, $sp, " << func.memSize();
 			emit(code.str());
+			vector<int> usedRegs = regPool->usedRegs(); 
+				for (int i = 0; i < usedRegs.size(); i++) {
+					pop(usedRegs[usedRegs.size() - i - 1]); 
+				}
 			pop(31); // restore $ra
 			delete($<str>ID);
 		}
@@ -1781,21 +1786,5 @@ void emitPrinti(){
 
 vector<int> merge(const vector<int> &l1,const vector<int> &l2) {
 	return CodeBuffer::merge(l1,l2);
-}
-
-void storeRegs() {
-	emit("#####storeRegs_start");
-	for( int i = 8 ; i < N+8 ; i++ ) {
-		//push(i);
-	}		
-	emit("#####storeRegs_end");
-}
-
-void loadRegs() {
-	emit("#####loadRegs_start");
-	for( int i = N+7 ; i >= 8 ; i-- ) {
-		//pop(i);
-	}		
-	emit("#####loadRegs_end");
 }
 
