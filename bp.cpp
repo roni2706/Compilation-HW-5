@@ -64,7 +64,7 @@ int CodeBuffer::emitData(const std::string& dataLine)
 
 string CodeBuffer::genDataLabel(){
 	std::stringstream label;
-	label << "str_";
+	label << "_str_";
 	label << buffer.size();
 	std::string ret(label.str());
 	label << ":";

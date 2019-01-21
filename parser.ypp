@@ -37,6 +37,7 @@
 	void emitPrinti();
 	void storeRegs();
 	void loadRegs();
+	void emitDivErrorData();
 	
 %}
 
@@ -130,6 +131,7 @@ Program : {
 			);
 			emitPrinti();
 			emit("");
+			emitDivErrorData();
 		/********************************************************************/
 		} Structs { } Funcs {
 		/********************************************************************/
@@ -1216,7 +1218,22 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 					code << "mulo ";
 				}
 			}
-			else { 
+			else {
+				code << "bne $" 
+					<< $<var>right->getReg() 
+					<< ", $0, ";
+				vector<int> divErrLabel = emitWithPatch(code.str());
+				code.str("");
+				code << "la $" 
+					<< $<var>right->getReg() 
+					<< ", _str_div_error";
+				emit(code.str());
+				push($<var>right->getReg());
+				code.str("");
+				emit("jal print #jump to print err");
+				emit("li $v0 10 #exit");
+				emit("syscall");
+				backpatch(divErrLabel,genLabel());
 				if ( $<var>result->getType() == "int" ) {
 					code << "div "; 
 				}
@@ -1783,6 +1800,10 @@ void emitPrinti(){
 	emit("syscall");
 	pop(30);
 	emit("jr $ra");
+}
+
+void emitDivErrorData() {
+	codeBuffer.emitData("_str_div_error: .asciiz \"Error division by zero\n\"");
 }
 
 vector<int> merge(const vector<int> &l1,const vector<int> &l2) {
