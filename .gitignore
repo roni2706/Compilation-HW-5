@@ -24,3 +24,4 @@ Testing/parser.hpp
 Testing/spim
 Testing/lex.yy.c
 Testing/exceptions.s
+*.asm
