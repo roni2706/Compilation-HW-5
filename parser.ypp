@@ -38,7 +38,8 @@
 	void storeRegs();
 	void loadRegs();
 	void emitDivErrorData();
-	
+	void maskByteHi(int reg);		
+
 %}
 
 %define api.value.type {union YYSTYPE}
@@ -1211,14 +1212,8 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			($<var>result)->allocReg(regPool->allocateReg());
 			stringstream code;
 			if ( *($<str>MUL) == string("*") ) {
-				if ( $<var>result->getType() == "int" ) {
-					code << "mul "; 
-				}
-				else {
-					code << "mulo ";
-				}
-			}
-			else {
+				code << "mul "; 
+			} else {
 				code << "bne $" 
 					<< $<var>right->getReg() 
 					<< ", $0, ";
@@ -1234,12 +1229,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				emit("li $v0 10 #exit");
 				emit("syscall");
 				backpatch(divErrLabel,genLabel());
-				if ( $<var>result->getType() == "int" ) {
-					code << "div "; 
-				}
-				else {
-					code << "divu ";
-				}
+				code << "divu ";
 			}
 			code 
 				<< "$" 
@@ -1249,6 +1239,9 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				<< ", $" 
 				<< $<var>right->getReg();
 			emit(code.str());
+			if ( $<var>result->getType() == "byte" ) {
+				maskByteHi(($<var>result)->getReg());
+			}
 			$<var>left->freeReg();
 			$<var>right->freeReg();
 			delete ($<str>MUL);
@@ -1289,20 +1282,10 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			$<var>result->allocReg(regPool->allocateReg());
 			stringstream code;
 			if ( *($<str>ADD) == string("+") ) {
-				if ( $<var>result->getType() == "int" ) {
-					code << "add "; 
-				}
-				else {
-					code << "addu ";
-				}
+				code << "addu "; 
 			}
 			else { 
-				if ( $<var>result->getType() == "int" ) {
-					code << "sub "; 
-				}
-				else {
-					code << "subu ";
-				}
+				code << "subu ";
 			}
 			code 
 				<< "$" 
@@ -1311,7 +1294,10 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				<< ($<var>left)->getReg()
 				<< ", $" 
 				<< ($<var>right)->getReg();
-			emit(code.str());
+			emit(code.str());			
+			if ( $<var>result->getType() == "byte" ) {
+				maskByteHi(($<var>result)->getReg());
+			}
 			$<var>left->freeReg();
 			$<var>right->freeReg();
 			delete ($<str>ADD);
@@ -1810,3 +1796,12 @@ vector<int> merge(const vector<int> &l1,const vector<int> &l2) {
 	return CodeBuffer::merge(l1,l2);
 }
 
+void maskByteHi(int reg) {
+	stringstream code;
+	code << "andi $" 
+		<< reg
+		<< ", $" 
+		<< reg
+		<< ", 0xFF";
+	emit(code.str());
+}
