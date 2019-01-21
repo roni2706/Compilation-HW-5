@@ -64,6 +64,9 @@ public:
 	vector<int>& breaklist();
 	vector<int>& continuelist();
 	string& quad();
+	void freeReg();
+	void allocReg(int reg);
+	int getReg() const;
 private:
 	vector<int> _breaklist;
 	vector<int> _continuelist;
@@ -72,6 +75,8 @@ private:
 	vector<int> _nextlist;
 	vector<int> _returnlist;
 	string _quad;
+	int _reg;
+
 };
 
 
@@ -95,9 +100,6 @@ public:
 	const string& getType() const;
 	int getPlace() const;
 	int getSize() const;
-	int getReg() const;
-	void freeReg();
-	void allocReg(int reg);
 private:
 	string _name;
 	string _type;
@@ -165,7 +167,7 @@ private:
 /*                             CLASS FUNC_PARAMS                            */
 /****************************************************************************/
 
-class FuncParams {
+class FuncParams : public Backpatchable {
 public:
 	// Constructors
 	FuncParams();

@@ -109,6 +109,18 @@ string& Backpatchable::quad(){
 	return _quad;
 }
 	
+int Backpatchable::getReg() const {
+	return _reg;
+}
+
+void Backpatchable::freeReg() {
+	_reg = 0;
+}
+
+void Backpatchable::allocReg(int reg) {
+	_reg = reg;
+}
+
 /****************************************************************************/
 /*                                CLASS VAR                                 */
 /****************************************************************************/
@@ -139,18 +151,6 @@ int Var::getPlace() const {
 
 int Var::getSize() const {
 	return _size;
-}
-
-int Var::getReg() const {
-	return _reg;
-}
-
-void Var::freeReg() {
-	_reg = 0;
-}
-
-void Var::allocReg(int reg) {
-	_reg = reg;
 }
 
 /****************************************************************************/

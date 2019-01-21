@@ -32,7 +32,7 @@
 	void pop(int reg);
 	void rpop(int reg);
 	void push(int reg);
-	void rpush(int reg);
+	void rpush(int spReg,int reg);
 	void emitPrint();
 	void emitPrinti();
 	void storeRegs();
@@ -917,7 +917,7 @@ Call[result] : ID LPAREN {
 				for (int i = 0; i < usedRegs.size(); i++) {
 					push(usedRegs[i]); 
 				}
-				// back up used regs
+				regPool->reallocPool();
 				stringstream code;
 				code << "addi $sp, $sp, -" << func.memSize();
 				emit(code.str()); 
@@ -953,9 +953,6 @@ Call[result] : ID LPAREN {
 						exit(0);
 					}
 				}
-				stringstream code;
-				code << "addi $sp, $sp, -" << func.memSize();
-				emit(code.str());
 				delete ($<funcParams>CallParams);
 			}
 			else {
@@ -976,6 +973,7 @@ Call[result] : ID LPAREN {
 			code.str("");
 			code << "addi $sp, $sp, " << func.memSize();
 			emit(code.str());
+			regPool->deallocPool();
 			vector<int> usedRegs = regPool->usedRegs(); 
 			for (int i = 0; i < usedRegs.size(); i++) {
 				pop(usedRegs[usedRegs.size() - i - 1]); 
@@ -996,6 +994,8 @@ Call[result] : ID LPAREN {
 /****************************************************************************/
 CallParams : ExpList {
 			$<funcParams>CallParams = $<funcParams>ExpList;
+			regPool->freeReg($<funcParams>CallParams->getReg());
+			$<funcParams>CallParams->freeReg();
 			// #NoEmit
 		}
 /****************************************************************************/
@@ -1013,17 +1013,24 @@ CallParams : ExpList {
 /* ExpList -> Exp */
 /****************************************************************************/
 ExpList[result] : Exp {
+			stringstream code;
 			FuncParams* parameters = new FuncParams();
 			parameters->addParam(*($<var>Exp));
 			$<funcParams>result = parameters;
-
+			$<funcParams>result->allocReg(regPool->allocateReg());
+			code << "move $" 
+				<< $<funcParams>result->getReg() 
+				<< ", $sp"; 
+			emit(code.str());
+			
 			try {
 				const StructNode& structNode = table->findStruct($<var>Exp->getType());				
 				for ( int i = structNode.size()-1 ; i >= 0 ; i-- ) {
 					$<var>Exp->allocReg(regPool->allocateReg());
 					emit(load($<var>Exp->getReg(), 
 						$<var>Exp->getPlace() + structNode[i].getPlace() ));
-					rpush($<var>Exp->getReg());
+					rpush($<funcParams>result->getReg(),$<var>Exp->getReg());
+					//sw $<var>Exp->getReg(), (i*4)sp
 					regPool->freeReg($<var>Exp->getReg());
 					$<var>Exp->freeReg();
 				}
@@ -1041,7 +1048,7 @@ ExpList[result] : Exp {
 					backpatch($<var>Exp->truelist(), trueLabel);
 					backpatch(tempVector, nextLabel);
 				}
-				rpush($<var>Exp->getReg());
+				rpush($<funcParams>result->getReg(),$<var>Exp->getReg());
 				regPool->freeReg($<var>Exp->getReg());
 				$<var>Exp->freeReg();
 			}
@@ -1064,7 +1071,7 @@ ExpList[result] : Exp {
 					$<var>Exp->allocReg(regPool->allocateReg());
 					emit(load($<var>Exp->getReg(), 
 						$<var>Exp->getPlace() + structNode[i].getPlace() ));
-					rpush($<var>Exp->getReg());
+					rpush($<funcParams>result->getReg(),$<var>Exp->getReg());
 					regPool->freeReg($<var>Exp->getReg());
 					$<var>Exp->freeReg();
 				}
@@ -1082,7 +1089,7 @@ ExpList[result] : Exp {
 					backpatch($<var>Exp->truelist(), trueLabel);
 					backpatch(tempVector, nextLabel);
 				}
-				rpush($<var>Exp->getReg());
+				rpush($<funcParams>result->getReg(),$<var>Exp->getReg());
 				regPool->freeReg($<var>Exp->getReg());
 				$<var>Exp->freeReg();
 			}
@@ -1756,13 +1763,20 @@ void push(int reg) {
 	emit("addi $sp, $sp, -4");
 }
 
-void rpush(int reg) {
+void rpush(int spReg, int reg) {
 	stringstream code;
-	emit("addi $sp, $sp, 4");
+	code << "addi $" 
+		<< spReg 
+		<< ", $" 
+		<< spReg << ", 4";
+	emit(code.str());
+	code.str("");
 	code 
 		<< "sw $"
 		<< reg
-		<< ", 0($sp)";
+		<< ", 0($" 
+		<< spReg 
+		<< ")";
 	emit(code.str());
 }
 
