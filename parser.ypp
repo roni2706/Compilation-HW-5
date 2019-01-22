@@ -517,7 +517,6 @@ Statement[result] : LBRACE {
 				errorMismatch(yylineno);
 				exit(0);
 			}
-			
 			try {
 				const StructNode& structNode = table->findStruct(rightType);				
 				for ( int i = 0 ; i < structNode.size() ; i++ ) {
@@ -870,7 +869,7 @@ Statement[result] : LBRACE {
 /* If -> IF LPAREN Exp RPAREN Statement */
 /****************************************************************************/
 If[result] 		: IF LPAREN Exp { 
-		/********************************************************************/
+		/********************************************************************/ 
 			if (($<var>Exp)->getType() != "bool"){
 				// Mismatch of if condition type
 				errorMismatch(yylineno);
@@ -1017,14 +1016,14 @@ ExpList[result] : Exp {
 			FuncParams* parameters = new FuncParams();
 			parameters->addParam(*($<var>Exp));
 			$<funcParams>result = parameters;
-			$<funcParams>result->allocReg(regPool->allocateReg());
-			code << "move $" 
-				<< $<funcParams>result->getReg() 
-				<< ", $sp"; 
-			emit(code.str());
-			
+			$<funcParams>result->allocReg(regPool->allocateReg());			
 			try {
 				const StructNode& structNode = table->findStruct($<var>Exp->getType());				
+				code << "move $" 
+					<< $<funcParams>result->getReg() 
+					<< ", $sp"; 
+				emit(code.str());
+				code.str("");
 				for ( int i = structNode.size()-1 ; i >= 0 ; i-- ) {
 					$<var>Exp->allocReg(regPool->allocateReg());
 					emit(load($<var>Exp->getReg(), 
@@ -1048,6 +1047,11 @@ ExpList[result] : Exp {
 					backpatch($<var>Exp->truelist(), trueLabel);
 					backpatch(tempVector, nextLabel);
 				}
+				code << "move $" 
+					<< $<funcParams>result->getReg() 
+					<< ", $sp"; 
+				emit(code.str());
+				code.str("");
 				rpush($<funcParams>result->getReg(),$<var>Exp->getReg());
 				regPool->freeReg($<var>Exp->getReg());
 				$<var>Exp->freeReg();
@@ -1322,7 +1326,12 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /****************************************************************************/
 		| ID {
 			try {
-				$<var>result = const_cast<Var*>(&(table->findVar(*($<str>ID))));
+				const Var& var = table->findVar(*($<str>ID));
+				$<var>result = new Var(
+					"__temp",
+					var.getType(),
+					var.getPlace(),
+					var.getSize());
 			}
 			catch (VariableNotFoundException e){
 				// Using undefined variable
@@ -1333,7 +1342,9 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 				table->findStruct($<var>result->getType());
 			}
 			catch (StructNotFoundException e){
-				$<var>result->allocReg(regPool->allocateReg());
+				if ($<var>result->getReg() == 0) {
+					$<var>result->allocReg(regPool->allocateReg()); 
+				}
 				emit(load($<var>result->getReg(), $<var>result->getPlace()));
 				if ( $<var>result->getType() == "bool") {
 					stringstream code;
@@ -1380,14 +1391,21 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 			try{
 				var = &(table->findVar(*($<str>left))); 
 				strct = &(table->findStruct(var->getType()));
-				$<var>result = const_cast<Var*>(&(strct->find(*($<str>right))));
+				const Var& var = strct->find(*($<str>right));
+				$<var>result = new Var(
+					"__temp",
+					var.getType(),
+					var.getPlace(),
+					var.getSize());
 			}
 			catch (VariableNotFoundException e){
 				// Using undefined struct member
 				errorUndefStructMember(yylineno,*($<str>left));
 				exit(0);
 			}
-			$<var>result->allocReg(regPool->allocateReg());
+			if ($<var>result->getReg() == 0) {
+				$<var>result->allocReg(regPool->allocateReg());
+			}
 			emit(load(
 				$<var>result->getReg(), 
 				var->getPlace() + $<var>result->getPlace()));
@@ -1448,6 +1466,7 @@ Exp[result]	: LPAREN Exp[left] RPAREN {
 /****************************************************************************/
 		| STRING {
 			$<var>result = new Var("__temp","string");
+			//codeBuffer.emitData(".align 3");
 			string strLabel = codeBuffer.genDataLabel();
 			stringstream code;
 			code << ".asciiz " << *($<str>STRING);
@@ -1803,7 +1822,7 @@ void emitPrinti(){
 }
 
 void emitDivErrorData() {
-	codeBuffer.emitData("_str_div_error: .asciiz \"Error division by zero\n\"");
+	codeBuffer.emitData("_str_div_error: .asciiz \"Error division by zero\\n\"");
 }
 
 vector<int> merge(const vector<int> &l1,const vector<int> &l2) {

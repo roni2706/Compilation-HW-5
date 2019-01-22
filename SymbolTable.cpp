@@ -77,7 +77,7 @@ void RegPool::deallocPool() {
 /****************************************************************************/
 
 // Constructors
-Backpatchable::Backpatchable() {}
+Backpatchable::Backpatchable() : _reg(0) {}
 // Destructor
 Backpatchable::~Backpatchable() {}
 // Functions

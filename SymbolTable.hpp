@@ -68,6 +68,7 @@ public:
 	void allocReg(int reg);
 	int getReg() const;
 private:
+	int _reg;
 	vector<int> _breaklist;
 	vector<int> _continuelist;
 	vector<int> _truelist;
@@ -75,7 +76,6 @@ private:
 	vector<int> _nextlist;
 	vector<int> _returnlist;
 	string _quad;
-	int _reg;
 
 };
 
